@@ -7,7 +7,7 @@ import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 
-import { BoxPointer } from 'resource:///org/gnome/shell/ui/boxpointer.js';
+import { BoxPointer, PopupAnimation } from 'resource:///org/gnome/shell/ui/boxpointer.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -277,7 +277,7 @@ const GridItem = superclass => {
 	return klass;
 };
 
-const DropZone = registerClass(class LibPanel_DropZone extends St.Widget {
+const DropZone = registerClass(class DropZone extends St.Widget {
 	constructor(source) {
 		super({ style_class: source._drag_actor?.style_class || source.style_class, opacity: 127 });
 		this._delegate = this;
@@ -383,7 +383,7 @@ class PanelGrid extends PopupMenu {
 
 	close(animate) {
 		for (const column of this.box.get_children()) {
-			column._close(animate);
+			column._close();
 		}
 		super.close(animate);
 	}
@@ -442,7 +442,7 @@ class PanelGrid extends PopupMenu {
 	}
 }
 
-const PanelColumn = registerClass(class LibPanel_PanelColumn extends Semitransparent(St.BoxLayout) {
+const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.BoxLayout) {
 	constructor(layout = []) {
 		super({ vertical: true, style: `spacing: ${GRID_SPACING}px` });
 		this.is_panel_column = true; // since we can't use instanceof, we use this attribute
@@ -502,9 +502,9 @@ const PanelColumn = registerClass(class LibPanel_PanelColumn extends Semitranspa
 		});
 	}
 
-	_close(animate) {
+	_close() {
 		for (const panel of this.get_children()) {
-			panel._close(animate);
+			panel._close();
 		}
 	}
 
@@ -526,7 +526,7 @@ const PanelColumn = registerClass(class LibPanel_PanelColumn extends Semitranspa
 	}
 });
 
-export var Panel = registerClass(class LibPanel_Panel extends GridItem(AutoHidable(St.Widget)) {
+export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Widget)) {
 	constructor(panel_name, nColumns = 2) {
 		super(`${get_extension_uuid()}/${panel_name}`, {
 			// I have no idea why, but sometimes, a panel (not all of them) gets allocated too much space (behavior similar to `y-expand`)
@@ -659,8 +659,8 @@ export var Panel = registerClass(class LibPanel_Panel extends GridItem(AutoHidab
 		this._grid.layout_manager.child_set_property(this._grid, item, 'column-span', colSpan);
 	}
 
-	_close(animate) {
-		this._activeMenu?.close(animate);
+	_close() {
+		this._activeMenu?.close(PopupAnimation.NONE);
 	}
 
 	_get_ah_children() {
