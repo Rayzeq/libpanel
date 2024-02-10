@@ -635,7 +635,7 @@ export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Wid
 		item.get_parent().remove_child(item);
 		if (item.menu) {
 			this.disconnect_named(item.menu);
-			item.menu.actor.get_parent().remove_child(item.menu.actor);
+			item.menu.actor?.get_parent()?.remove_child(item.menu.actor);
 		}
 		if (item._menuButton) {
 			item._menuButton.y_expand = item._menuButton._libpanel_y_expand_backup;
