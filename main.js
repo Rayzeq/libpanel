@@ -71,12 +71,12 @@ const AutoHidable = superclass => {
 			if (this._lpah_container !== undefined) this.disconnect_named(this._lpah_container);
 			if (value !== null) {
 				this._lpah_container = value;
-				this.connect_named(this._lpah_container, 'actor-added', (_container, children) => {
-					this.connect_named(children, 'notify::visible', this._update_visibility.bind(this));
+				this.connect_named(this._lpah_container, 'child-added', (_container, child) => {
+					this.connect_named(child, 'notify::visible', this._update_visibility.bind(this));
 					this._update_visibility();
 				});
-				this.connect_named(this._lpah_container, 'actor-removed', (_container, children) => {
-					this.disconnect_named(children);
+				this.connect_named(this._lpah_container, 'child-removed', (_container, child) => {
+					this.disconnect_named(child);
 					this._update_visibility();
 				});
 				this._update_visibility();
@@ -455,32 +455,32 @@ const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.B
 		});
 		this.add_constraint(this._width_constraint);
 
-		this.connect_after_named(this, 'actor-added', (_self, actor) => {
+		this.connect_after_named(this, 'child-added', (_self, child) => {
 			if (this.get_children().length === 1) this.remove_constraint(this._width_constraint);
-			if (!actor.is_grid_item) return;
+			if (!child.is_grid_item) return;
 
-			const prev_index = this._panel_layout.indexOf(actor.get_previous_sibling()?.panel_name);
-			const index = this._panel_layout.indexOf(actor.panel_name);
-			const next_index = this._panel_layout.indexOf(actor.get_next_sibling()?.panel_name);
-			// `actor` is in the layout but is misplaced
+			const prev_index = this._panel_layout.indexOf(child.get_previous_sibling()?.panel_name);
+			const index = this._panel_layout.indexOf(child.panel_name);
+			const next_index = this._panel_layout.indexOf(child.get_next_sibling()?.panel_name);
+			// `child` is in the layout but is misplaced
 			if (index > -1 && ((prev_index > -1 && index < prev_index) || (next_index > -1 && next_index < index))) {
-				array_remove(this._panel_layout, actor.panel_name);
+				array_remove(this._panel_layout, child.panel_name);
 				index = -1;
 			}
-			if (index < 0) { // `actor` is not in the layout
+			if (index < 0) { // `child` is not in the layout
 				if (prev_index > -1)
-					array_insert(this._panel_layout, prev_index + 1, actor.panel_name);
+					array_insert(this._panel_layout, prev_index + 1, child.panel_name);
 				else if (next_index > 0)
-					array_insert(this._panel_layout, next_index - 1, actor.panel_name);
+					array_insert(this._panel_layout, next_index - 1, child.panel_name);
 				else
-					array_insert(this._panel_layout, 0, actor.panel_name);
+					array_insert(this._panel_layout, 0, child.panel_name);
 			}
 		});
-		this.connect_after_named(this, 'actor-removed', (_self, actor) => {
+		this.connect_after_named(this, 'child-removed', (_self, child) => {
 			if (this.get_children().length === 0) this.add_constraint(this._width_constraint);
-			if (actor._keep_layout || !actor.is_grid_item) return;
+			if (child._keep_layout || !child.is_grid_item) return;
 
-			array_remove(this._panel_layout, actor.panel_name);
+			array_remove(this._panel_layout, child.panel_name);
 		});
 
 		this.connect('destroy', () => this._is_destroyed = true);
@@ -495,8 +495,8 @@ const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.B
 				if (this._is_destroyed || this._inhibit_constraint_update) return;
 				this._width_constraint.source = this.get_next_sibling();
 			};
-			this.connect_after_named(parent, 'actor-added', update_source);
-			this.connect_after_named(parent, 'actor-removed', update_source);
+			this.connect_after_named(parent, 'child-added', update_source);
+			this.connect_after_named(parent, 'child-removed', update_source);
 
 			update_source();
 		});
