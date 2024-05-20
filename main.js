@@ -197,7 +197,7 @@ const GridItem = superclass => {
 			// This is emited BEFORE drag-end, which means that this._dnd_placeholder is still available
 			this.connect_named(this._drag_handle, 'drag-cancelled', () => {
 				// This stop the dnd system from doing anything with `this`, we want to manage ourselves what to do.
-				this._drag_handle._dragState = DND.DragState.CANCELLED;
+				this._drag_handle._dragState = 2 /* DND.DragState.CANCELLED (this enum is private) */;
 
 				if (this._dnd_placeholder.get_parent() !== null) {
 					this._dnd_placeholder.acceptDrop(this);
