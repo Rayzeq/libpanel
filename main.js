@@ -175,8 +175,11 @@ const GridItem = superclass => {
 
 				// Prevent the first column from disapearing if it only contains `this`
 				const column = this.get_parent();
+				const alignment = column.get_parent()._delegate._alignment;
 				this._source_column = column;
-				if (column.get_next_sibling() === null && column.get_children().length === 1) {
+				if (column.get_children().length === 1
+					&& ((alignment == "left" && column.get_previous_sibling() === null)
+						|| (alignment == "right" && column.get_next_sibling() === null))) {
 					column._width_constraint.source = this;
 					column._inhibit_constraint_update = true;
 				}
@@ -308,8 +311,147 @@ const DropZone = registerClass(class DropZone extends St.Widget {
 	}
 });
 
+const AlignedBoxpointer = registerClass(class AlignedBoxpointer extends Semitransparent(BoxPointer) {
+	constructor(arrowSide, binProperties) {
+		super(arrowSide, binProperties);
+		this._alignment = "right";
+	}
+
+	_reposition(allocationBox) {
+		// code copied and modified from: https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/boxpointer.js#L463
+		let sourceActor = this._sourceActor;
+		let alignment = this._arrowAlignment;
+		let monitorIndex = Main.layoutManager.findIndexForActor(sourceActor);
+
+		this._sourceExtents = sourceActor.get_transformed_extents();
+		this._workArea = Main.layoutManager.getWorkAreaForMonitor(monitorIndex);
+
+		// Position correctly relative to the sourceActor
+		const sourceAllocation = sourceActor.get_allocation_box();
+		const sourceContentBox = sourceActor instanceof St.Widget
+			? sourceActor.get_theme_node().get_content_box(sourceAllocation)
+			: new Clutter.ActorBox({
+				x2: sourceAllocation.get_width(),
+				y2: sourceAllocation.get_height(),
+			});
+		let sourceTopLeft = this._sourceExtents.get_top_left();
+		let sourceBottomRight = this._sourceExtents.get_bottom_right();
+		let sourceCenterX = sourceTopLeft.x + sourceContentBox.x1 + (sourceContentBox.x2 - sourceContentBox.x1) * this._sourceAlignment;
+		let sourceCenterY = sourceTopLeft.y + sourceContentBox.y1 + (sourceContentBox.y2 - sourceContentBox.y1) * this._sourceAlignment;
+		let [, , natWidth, natHeight] = this.get_preferred_size();
+
+		// We also want to keep it onscreen, and separated from the
+		// edge by the same distance as the main part of the box is
+		// separated from its sourceActor
+		let workarea = this._workArea;
+		let themeNode = this.get_theme_node();
+		let borderWidth = themeNode.get_length('-arrow-border-width');
+		let arrowBase = themeNode.get_length('-arrow-base');
+		let borderRadius = themeNode.get_length('-arrow-border-radius');
+		let margin = 4 * borderRadius + borderWidth + arrowBase;
+
+		let gap = themeNode.get_length('-boxpointer-gap');
+		let padding = themeNode.get_length('-arrow-rise');
+
+		let resX, resY;
+
+		switch (this._arrowSide) {
+			case St.Side.TOP:
+				resY = sourceBottomRight.y + gap;
+				break;
+			case St.Side.BOTTOM:
+				resY = sourceTopLeft.y - natHeight - gap;
+				break;
+			case St.Side.LEFT:
+				resX = sourceBottomRight.x + gap;
+				break;
+			case St.Side.RIGHT:
+				resX = sourceTopLeft.x - natWidth - gap;
+				break;
+		}
+
+		// Now align and position the pointing axis, making sure it fits on
+		// screen. If the arrowOrigin is so close to the edge that the arrow
+		// will not be isosceles, we try to compensate as follows:
+		//   - We skip the rounded corner and settle for a right angled arrow
+		//     as shown below. See _drawBorder for further details.
+		//     |\_____
+		//     |
+		//     |
+		//   - If the arrow was going to be acute angled, we move the position
+		//     of the box to maintain the arrow's accuracy.
+
+		let arrowOrigin;
+		let halfBase = Math.floor(arrowBase / 2);
+		let halfBorder = borderWidth / 2;
+		let halfMargin = margin / 2;
+		let [x1, y1] = [halfBorder, halfBorder];
+		let [x2, y2] = [natWidth - halfBorder, natHeight - halfBorder];
+
+		switch (this._arrowSide) {
+			case St.Side.TOP:
+			case St.Side.BOTTOM:
+				if (this.text_direction === Clutter.TextDirection.RTL)
+					alignment = 1.0 - alignment;
+
+				resX = sourceCenterX - (halfMargin + (natWidth - margin) * alignment);
+
+				if (this._alignment == "right") {
+					resX = Math.max(resX, workarea.x + padding);
+					resX = Math.min(resX, workarea.x + workarea.width - (padding + natWidth));
+				} else if (this._alignment == "left") {
+					resX = Math.min(resX, workarea.x + workarea.width - (padding + natWidth));
+					resX = Math.max(resX, workarea.x + padding);
+				}
+
+				arrowOrigin = sourceCenterX - resX;
+				if (arrowOrigin <= (x1 + (borderRadius + halfBase))) {
+					if (arrowOrigin > x1)
+						resX += arrowOrigin - x1;
+					arrowOrigin = x1;
+				} else if (arrowOrigin >= (x2 - (borderRadius + halfBase))) {
+					if (arrowOrigin < x2)
+						resX -= x2 - arrowOrigin;
+					arrowOrigin = x2;
+				}
+				break;
+
+			case St.Side.LEFT:
+			case St.Side.RIGHT:
+				resY = sourceCenterY - (halfMargin + (natHeight - margin) * alignment);
+
+				resY = Math.max(resY, workarea.y + padding);
+				resY = Math.min(resY, workarea.y + workarea.height - (padding + natHeight));
+
+				arrowOrigin = sourceCenterY - resY;
+				if (arrowOrigin <= (y1 + (borderRadius + halfBase))) {
+					if (arrowOrigin > y1)
+						resY += arrowOrigin - y1;
+					arrowOrigin = y1;
+				} else if (arrowOrigin >= (y2 - (borderRadius + halfBase))) {
+					if (arrowOrigin < y2)
+						resY -= y2 - arrowOrigin;
+					arrowOrigin = y2;
+				}
+				break;
+		}
+
+		this.setArrowOrigin(arrowOrigin);
+
+		let parent = this.get_parent();
+		let success, x, y;
+		while (!success) {
+			[success, x, y] = parent.transform_stage_point(resX, resY);
+			parent = parent.get_parent();
+		}
+
+		// Actually set the position
+		allocationBox.set_origin(Math.floor(x), Math.floor(y));
+	}
+});
+
 class PanelGrid extends PopupMenu {
-	constructor(sourceActor) {
+	constructor(sourceActor, alignment) {
 		super(sourceActor, 0, St.Side.TOP);
 
 		// ==== We replace the BoxPointer with our own because we want to make it transparent ====
@@ -320,7 +462,7 @@ class PanelGrid extends PopupMenu {
 		// https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/popupMenu.js#L801
 
 		// We want to make the actor transparent
-		this._boxPointer = new (Semitransparent(BoxPointer))(this._arrowSide);
+		this._boxPointer = new AlignedBoxpointer(this._arrowSide);
 		this.actor = this._boxPointer;
 		this.actor._delegate = this;
 		this.actor.style_class = 'popup-menu-boxpointer';
@@ -358,11 +500,13 @@ class PanelGrid extends PopupMenu {
 		this._panel_style_class = this.box.style_class; // we save the style class that's used to make a nice panel
 		this.box.style_class = ''; // and we remove it so it's invisible
 		this.box.style = `spacing: ${GRID_SPACING}px`;
+		this._set_alignment(alignment);
 
 		this.actor.connect_after('notify::allocation', () => {
 			// The `setTimeout` fixes the following warning:
 			// Can't update stage views actor ... is on because it needs an allocation.
-			if (this.actor.x > 0)
+			if ((this._alignment == "right" && this.actor.x > 0)
+				|| (this._alignment == "left" && this.actor.x + this.actor.width < this.actor.get_parent().allocation.x2))
 				this._timeout_id = setTimeout(() => {
 					this._timeout_id = null;
 					this._add_column();
@@ -371,6 +515,21 @@ class PanelGrid extends PopupMenu {
 		this.actor.connect('destroy', () => {
 			if (this._timeout_id) clearTimeout(this._timeout_id);
 		});
+	}
+
+	_set_alignment(alignment) {
+		if (alignment != this._alignment) {
+			for (const column of this.box.get_children().toReversed()) {
+				this.box.remove_child(column);
+				// remove placeholder columns, they'll be recreated automatically
+				if (!column.get_constraints().includes(column._width_constraint)) {
+					this.box.add_child(column);
+				}
+			}
+		}
+
+		this._alignment = alignment;
+		this._boxPointer._alignment = alignment;
 	}
 
 	get transparent() {
@@ -425,16 +584,26 @@ class PanelGrid extends PopupMenu {
 	_add_column(layout = []) {
 		const column = new PanelColumn(layout);
 		this.actor.bind_property('transparent', column, 'transparent', GObject.BindingFlags.SYNC_CREATE);
-		this.box.insert_child_at_index(column, 0);
+		if (this._alignment == "left") {
+			this.box.add_child(column);
+		} else if (this._alignment == "right") {
+			this.box.insert_child_at_index(column, 0);
+		}
 		return column;
 	}
 
 	_get_panel_layout() {
-		return this.box.get_children().map(column => column._panel_layout);
+		const layout = this.box.get_children().map(column => column._panel_layout);
+		if (this._alignment == "left") layout.reverse();
+		return layout;
 	}
 
 	_cleanup() {
-		while (this.box.last_child.get_children().length === 0) this.box.last_child.destroy();
+		if (this._alignment == "left") {
+			while (this.box.first_child.get_children().length === 0) this.box.first_child.destroy();
+		} else if (this._alignment == "right") {
+			while (this.box.last_child.get_children().length === 0) this.box.last_child.destroy();
+		}
 	}
 
 	_get_panels() {
@@ -493,7 +662,13 @@ const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.B
 				// clutter is being dumb and emit this signal even though `_parent` and `this` are destroyed
 				// this fix it
 				if (this._is_destroyed || this._inhibit_constraint_update) return;
-				this._width_constraint.source = this.get_next_sibling();
+
+				const alignment = this.get_parent()._delegate._alignment;
+				if (alignment == "left") {
+					this._width_constraint.source = this.get_previous_sibling();
+				} else if (alignment == "right") {
+					this._width_constraint.source = this.get_next_sibling();
+				}
 			};
 			this.connect_after_named(parent, 'child-added', update_source);
 			this.connect_after_named(parent, 'child-removed', update_source);
@@ -819,7 +994,11 @@ export class LibPanel {
 		add_named_connections(this._patcher, GObject.Object);
 
 		// =================== Replacing the popup ==================
-		this._panel_grid = new PanelGrid(QuickSettings);
+		this._settings.connect('changed::alignment', () => {
+			this._panel_grid._set_alignment(this._settings.get_string('alignment'));
+		});
+
+		this._panel_grid = new PanelGrid(QuickSettings, this._settings.get_string('alignment'));
 		for (const column of this._settings.get_value("layout").recursiveUnpack().reverse()) {
 			this._panel_grid._add_column(column);
 		}
