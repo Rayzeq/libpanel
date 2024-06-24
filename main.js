@@ -174,10 +174,10 @@ const GridItem = superclass => {
 				QuickSettings.menu.transparent = false;
 
 				// Prevent the first column from disapearing if it only contains `this`
-				const column = this.get_parent();
+				const column = this.get_parent()._delegate;
 				const alignment = column.get_parent()._delegate._alignment;
 				this._source_column = column;
-				if (column.get_children().length === 1
+				if (column._inner.get_children().length === 1
 					&& ((alignment == "left" && column.get_previous_sibling() === null)
 						|| (alignment == "right" && column.get_next_sibling() === null))) {
 					column._width_constraint.source = this;
@@ -263,7 +263,12 @@ const GridItem = superclass => {
 			this._dnd_placeholder.get_parent()?.remove_child(this._dnd_placeholder);
 
 			if (event.targetActor.is_panel_column) {
-				event.targetActor.add_child(this._dnd_placeholder);
+				const column = event.targetActor._delegate._inner;
+				if (column.y_align == Clutter.ActorAlign.START) {
+					column.add_child(this._dnd_placeholder);
+				} else {
+					column.insert_child_at_index(this._dnd_placeholder, 0); 
+				}
 			} else if (panel !== undefined) {
 				const column = panel.get_parent();
 				if (previous_sibling === this._dnd_placeholder || event.y > (target_pos[1] + self_size[1])) {
@@ -305,7 +310,7 @@ const DropZone = registerClass(class DropZone extends St.Widget {
 		const column = this.get_parent();
 		column.replace_child(this, source);
 
-		column.get_parent()._delegate._cleanup();
+		column._delegate.get_parent()._delegate._cleanup();
 		LibPanel.get_instance()._save_layout();
 		return true;
 	}
@@ -357,10 +362,15 @@ const AlignedBoxpointer = registerClass(class AlignedBoxpointer extends Semitran
 
 		switch (this._arrowSide) {
 			case St.Side.TOP:
+				// `gap` is 0
+				// the thing that creates a gap is `padding`
+				// it's added to allocation of the children of this actor, see BoxPointer.vfunc_allocate
 				resY = sourceBottomRight.y + gap;
+				allocationBox.set_size(allocationBox.get_width(), workarea.height - 2 * gap - padding);
 				break;
 			case St.Side.BOTTOM:
-				resY = sourceTopLeft.y - natHeight - gap;
+				resY = gap + padding;
+				allocationBox.set_size(allocationBox.get_width(), workarea.height - 2 * gap - padding);
 				break;
 			case St.Side.LEFT:
 				resX = sourceBottomRight.x + gap;
@@ -453,6 +463,7 @@ const AlignedBoxpointer = registerClass(class AlignedBoxpointer extends Semitran
 class PanelGrid extends PopupMenu {
 	constructor(sourceActor, alignment) {
 		super(sourceActor, 0, St.Side.TOP);
+		this._valign = "top";
 
 		// ==== We replace the BoxPointer with our own because we want to make it transparent ====
 		global.focus_manager.remove_group(this._boxPointer);
@@ -466,26 +477,6 @@ class PanelGrid extends PopupMenu {
 		this.actor = this._boxPointer;
 		this.actor._delegate = this;
 		this.actor.style_class = 'popup-menu-boxpointer';
-		// Force the popup to take all the screen to allow drag and drop to empty spaces
-		this.actor.connect_after('parent-set', () => {
-			if (this._height_constraint) this.actor.remove_constraint(this._height_constraint);
-			const parent = this.actor.get_parent();
-			if (parent === null) {
-				this._height_constraint = undefined;
-			} else {
-				this._height_constraint = new Clutter.BindConstraint({
-					coordinate: Clutter.BindCoordinate.HEIGHT,
-					source: parent,
-				});
-				this.actor.add_constraint(this._height_constraint);
-			}
-		});
-		// And manually add the bottom margin. This is useless as the grid is invisible,
-		// but in case something make it visible it looks nice
-		this.actor.connect_after('stage-views-changed', () => {
-			if (this.actor.get_stage() === null || this._height_constraint === undefined) return;
-			this._height_constraint.offset = -this.actor.getArrowHeight();
-		});
 
 		this._boxPointer.bin.set_child(this.box);
 		this.actor.add_style_class_name('popup-menu');
@@ -511,6 +502,13 @@ class PanelGrid extends PopupMenu {
 					this._timeout_id = null;
 					this._add_column();
 				}, 0);
+
+			// this may invalidate the allocation, so this must be after the size checks
+			if (this._boxPointer._sourceActor.get_transformed_position()[1] > (this._boxPointer.get_parent().allocation.y2 / 2)) {
+				this._set_valign("bottom");
+			} else {
+				this._set_valign("top");
+			}
 		});
 		this.actor.connect('destroy', () => {
 			if (this._timeout_id) clearTimeout(this._timeout_id);
@@ -530,6 +528,13 @@ class PanelGrid extends PopupMenu {
 
 		this._alignment = alignment;
 		this._boxPointer._alignment = alignment;
+	}
+
+	_set_valign(alignment) {
+		this._valign = alignment;
+		for (const column of this.box.get_children()) {
+			column._set_valign(alignment);
+		}
 	}
 
 	get transparent() {
@@ -562,7 +567,7 @@ class PanelGrid extends PopupMenu {
 
 		// Everything here is really approximated because we can't have the allocations boxes at this point
 		// Most notably, `max_height` will be wrong
-		const max_height = this._height_constraint?.source?.height || this.actor.height;
+		const max_height = this._boxPointer.get_parent()?.height || this.actor.height;
 		let column;
 		for (const children of this.box.get_children().reverse()) {
 			if (this._get_column_height(children) < max_height) {
@@ -582,7 +587,7 @@ class PanelGrid extends PopupMenu {
 	}
 
 	_add_column(layout = []) {
-		const column = new PanelColumn(layout);
+		const column = new PanelColumn(this._valign, layout);
 		this.actor.bind_property('transparent', column, 'transparent', GObject.BindingFlags.SYNC_CREATE);
 		if (this._alignment == "left") {
 			this.box.add_child(column);
@@ -600,9 +605,9 @@ class PanelGrid extends PopupMenu {
 
 	_cleanup() {
 		if (this._alignment == "left") {
-			while (this.box.first_child.get_children().length === 0) this.box.first_child.destroy();
+			while (this.box.first_child._inner.get_children().length === 0) this.box.first_child.destroy();
 		} else if (this._alignment == "right") {
-			while (this.box.last_child.get_children().length === 0) this.box.last_child.destroy();
+			while (this.box.last_child._inner.get_children().length === 0) this.box.last_child.destroy();
 		}
 	}
 
@@ -612,10 +617,17 @@ class PanelGrid extends PopupMenu {
 }
 
 const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.BoxLayout) {
-	constructor(layout = []) {
-		super({ vertical: true, style: `spacing: ${GRID_SPACING}px` });
+	constructor(valign, layout = []) {
+		super({ y_align: Clutter.ActorAlign.FILL, vertical: true });
+		this._delegate = this;
 		this.is_panel_column = true; // since we can't use instanceof, we use this attribute
 		this._panel_layout = layout;
+
+		// `this` takes up the whole screen height, while `this._inner` is vertically aligned and contains items
+		this._inner = new St.BoxLayout({ y_expand: true, vertical: true, style: `spacing: ${GRID_SPACING}px` });
+		this._inner._delegate = this;
+		this.add_child(this._inner);
+		this._set_valign(valign);
 
 		this._inhibit_constraint_update = false;
 		this._width_constraint = new Clutter.BindConstraint({
@@ -624,8 +636,8 @@ const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.B
 		});
 		this.add_constraint(this._width_constraint);
 
-		this.connect_after_named(this, 'child-added', (_self, child) => {
-			if (this.get_children().length === 1) this.remove_constraint(this._width_constraint);
+		this.connect_after_named(this._inner, 'child-added', (_self, child) => {
+			if (this._inner.get_children().length === 1) this.remove_constraint(this._width_constraint);
 			if (!child.is_grid_item) return;
 
 			const prev_index = this._panel_layout.indexOf(child.get_previous_sibling()?.panel_name);
@@ -645,8 +657,8 @@ const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.B
 					array_insert(this._panel_layout, 0, child.panel_name);
 			}
 		});
-		this.connect_after_named(this, 'child-removed', (_self, child) => {
-			if (this.get_children().length === 0) this.add_constraint(this._width_constraint);
+		this.connect_after_named(this._inner, 'child-removed', (_self, child) => {
+			if (this._inner.get_children().length === 0) this.add_constraint(this._width_constraint);
 			if (child._keep_layout || !child.is_grid_item) return;
 
 			array_remove(this._panel_layout, child.panel_name);
@@ -677,8 +689,16 @@ const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.B
 		});
 	}
 
+	_set_valign(alignment) {
+		if (alignment == "top") {
+			this._inner.y_align = Clutter.ActorAlign.START;
+		} else {
+			this._inner.y_align = Clutter.ActorAlign.END;
+		}
+	}
+
 	_close() {
-		for (const panel of this.get_children()) {
+		for (const panel of this._inner.get_children()) {
 			panel._close();
 		}
 	}
@@ -686,17 +706,17 @@ const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.B
 	_add_panel(panel) {
 		const index = this._panel_layout.indexOf(panel.panel_name);
 		if (index > -1) {
-			const panels = this.get_children().map(children => children.panel_name);
+			const panels = this._inner.get_children().map(children => children.panel_name);
 			for (const panel_name of this._panel_layout.slice(0, index).reverse()) {
 				const children_index = panels.indexOf(panel_name);
 				if (children_index > -1) {
-					this.insert_child_at_index(panel, children_index + 1);
+					this._inner.insert_child_at_index(panel, children_index + 1);
 					return;
 				}
 			}
-			this.insert_child_at_index(panel, 0);
+			this._inner.insert_child_at_index(panel, 0);
 		} else {
-			this.add_child(panel);
+			this._inner.add_child(panel);
 		}
 	}
 });
