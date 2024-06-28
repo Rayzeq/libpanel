@@ -369,7 +369,8 @@ const AlignedBoxpointer = registerClass(class AlignedBoxpointer extends Semitran
 				allocationBox.set_size(allocationBox.get_width(), workarea.height - 2 * gap - padding);
 				break;
 			case St.Side.BOTTOM:
-				resY = gap + padding;
+				// needs to be relative to `sourceTopLeft.y` to correctly support multi-monitor setups
+				resY = sourceTopLeft.y - workarea.height + gap + padding;
 				allocationBox.set_size(allocationBox.get_width(), workarea.height - 2 * gap - padding);
 				break;
 			case St.Side.LEFT:
