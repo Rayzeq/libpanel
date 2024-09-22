@@ -3,6 +3,7 @@
 //   - Drag & Drop example: https://gitlab.com/justperfection.channel/how-to-create-a-gnome-shell-extension/-/blob/master/example11%40example11.com/extension.js
 
 import Clutter from 'gi://Clutter';
+import Cogl from 'gi://Cogl';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
@@ -869,7 +870,12 @@ export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Wid
 		const POPUP_ANIMATION_TIME = 400;
 
 		const val = 127 * (1 + (dim ? 1 : 0) * DIM_BRIGHTNESS);
-		const color = Clutter.Color.new(val, val, val, 255);
+		const color = new Cogl.Color({
+			red: val,
+			green: val,
+			blue: val,
+			alpha: 255,
+		});
 
 		this._grid.ease_property('@effects.dim.brightness', color, {
 			mode: Clutter.AnimationMode.LINEAR,
