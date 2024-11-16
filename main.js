@@ -463,9 +463,10 @@ const AlignedBoxpointer = registerClass(class AlignedBoxpointer extends Semitran
 });
 
 class PanelGrid extends PopupMenu {
-	constructor(sourceActor, alignment) {
+	constructor(sourceActor, alignment, single_column) {
 		super(sourceActor, 0, St.Side.TOP);
 		this._valign = "top";
+		this._single_column = single_column;
 
 		// ==== We replace the BoxPointer with our own because we want to make it transparent ====
 		global.focus_manager.remove_group(this._boxPointer);
@@ -496,14 +497,16 @@ class PanelGrid extends PopupMenu {
 		this._set_alignment(alignment);
 
 		this.actor.connect_after('notify::allocation', () => {
-			// The `setTimeout` fixes the following warning:
-			// Can't update stage views actor ... is on because it needs an allocation.
-			if ((this._alignment == "right" && this.actor.x > 0)
-				|| (this._alignment == "left" && this.actor.x + this.actor.width < this.actor.get_parent().allocation.x2))
-				this._timeout_id = setTimeout(() => {
-					this._timeout_id = null;
-					this._add_column();
-				}, 0);
+			if (!this._single_column) {
+				// The `setTimeout` fixes the following warning:
+				// Can't update stage views actor ... is on because it needs an allocation.
+				if ((this._alignment == "right" && this.actor.x > 0)
+					|| (this._alignment == "left" && this.actor.x + this.actor.width < this.actor.get_parent().allocation.x2))
+					this._timeout_id = setTimeout(() => {
+						this._timeout_id = null;
+						this._add_column();
+					}, 0);
+			}
 
 			// this may invalidate the allocation, so this must be after the size checks
 			if (this._boxPointer._sourceActor.get_transformed_position()[1] > (this._boxPointer.get_parent().allocation.y2 / 2)) {
@@ -530,6 +533,26 @@ class PanelGrid extends PopupMenu {
 
 		this._alignment = alignment;
 		this._boxPointer._alignment = alignment;
+	}
+
+	_set_is_single_column(single_column) {
+		this._single_column = single_column;
+
+		const panels = this._get_panels();
+		for (const panel of panels) {
+			panel.get_parent().remove_child(panel);
+		}
+
+		for (const column of this.box.get_children()) {
+			column.get_parent().remove_child(column);
+			column.destroy();
+		}
+
+		for (const panel of panels) {
+			this._add_panel(panel);
+		}
+
+		this.actor.notify("allocation");
 	}
 
 	_set_valign(alignment) {
@@ -561,7 +584,7 @@ class PanelGrid extends PopupMenu {
 		}
 
 		for (const column of this.box.get_children()) {
-			if (column._panel_layout.indexOf(panel.panel_name) > -1) {
+			if (this._single_column || column._panel_layout.indexOf(panel.panel_name) > -1) {
 				column._add_panel(panel);
 				return;
 			}
@@ -614,7 +637,7 @@ class PanelGrid extends PopupMenu {
 	}
 
 	_get_panels() {
-		return this.box.get_children().map(column => column.get_children()).flat();
+		return this.box.get_children().map(column => column._delegate._inner.get_children()).flat();
 	}
 }
 
@@ -1024,8 +1047,11 @@ export class LibPanel {
 		this._settings.connect('changed::alignment', () => {
 			this._panel_grid._set_alignment(this._settings.get_string('alignment'));
 		});
+		this._settings.connect('changed::single-column', () => {
+			this._panel_grid._set_is_single_column(this._settings.get_boolean('single-column'));
+		});
 
-		this._panel_grid = new PanelGrid(QuickSettings, this._settings.get_string('alignment'));
+		this._panel_grid = new PanelGrid(QuickSettings, this._settings.get_string('alignment'), this._settings.get_boolean('single-column'));
 		for (const column of this._settings.get_value("layout").recursiveUnpack().reverse()) {
 			this._panel_grid._add_column(column);
 		}
