@@ -135,7 +135,7 @@ const Semitransparent = superclass => {
 			this.notify('transparent');
 		}
 
-		vfunc_pick(context) {
+		vfunc_pick(context: Clutter.PickContext) {
 			if (!this.transparent) {
 				super.vfunc_pick(context);
 			}
@@ -301,12 +301,12 @@ const DropZone = registerClass(class DropZone extends St.Widget {
 });
 
 const AlignedBoxpointer = registerClass(class AlignedBoxpointer extends Semitransparent(BoxPointer) {
-	constructor(arrowSide, binProperties) {
+	constructor(arrowSide: St.Side, binProperties?: Partial<St.Bin.ConstructorProps>) {
 		super(arrowSide, binProperties);
 		this._alignment = "right";
 	}
 
-	_reposition(allocationBox) {
+	_reposition(allocationBox: Clutter.ActorBox): void {
 		// code copied and modified from: https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/boxpointer.js#L463
 		let sourceActor = this._sourceActor;
 		let alignment = this._arrowAlignment;
@@ -790,23 +790,23 @@ export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Wid
 		return this.getItems[0];
 	}
 
-	addItem(item, colSpan = 1) {
+	addItem(item, colSpan: number = 1) {
 		this._grid.add_child(item);
 		this._completeAddItem(item, colSpan);
 	}
 
-	insertItemBefore(item, sibling, colSpan = 1) {
+	insertItemBefore(item, sibling, colSpan: number = 1) {
 		this._grid.insert_child_below(item, sibling);
 		this._completeAddItem(item, colSpan);
 	}
 
-	_completeAddItem(item, colSpan) {
+	_completeAddItem(item, colSpan: number) {
 		this.setColumnSpan(item, colSpan);
 
 		if (item.menu) {
 			this._overlay.add_child(item.menu.actor);
 
-			this.connect_named(item.menu, 'open-state-changed', (_, isOpen) => {
+			this.connect_named(item.menu, 'open-state-changed', (_, isOpen: boolean) => {
 				this._setDimmed(isOpen);
 				this._activeMenu = isOpen ? item.menu : null;
 				// The sub-popup for the power menu is too high.
@@ -856,7 +856,7 @@ export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Wid
 		return column_span;
 	}
 
-	setColumnSpan(item, colSpan) {
+	setColumnSpan(item, colSpan: number) {
 		if (!this._grid.get_children().includes(item)) console.error(`[LibPanel] ${get_extension_uuid()} tried to set the column span of an item not in the panel`);
 
 		this._grid.layout_manager.child_set_property(this._grid, item, 'column-span', colSpan);
@@ -870,7 +870,7 @@ export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Wid
 		return this.getItems();
 	}
 
-	_setDimmed(dim) {
+	_setDimmed(dim: boolean) {
 		// copied from https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/quickSettings.js
 		const DIM_BRIGHTNESS = -0.4;
 		const POPUP_ANIMATION_TIME = 400;
@@ -921,7 +921,7 @@ QuickSettingsMenu.prototype.getColumnSpan = function (item) {
 	value.unset();
 	return column_span;
 };
-QuickSettingsMenu.prototype.setColumnSpan = function (item, colSpan) {
+QuickSettingsMenu.prototype.setColumnSpan = function (item, colSpan: number) {
 	this._grid.layout_manager.child_set_property(this._grid, item, 'column-span', colSpan);
 };
 
