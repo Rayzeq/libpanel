@@ -1,6 +1,9 @@
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
 
+import type { InjectionManager } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { Constructor } from '../utils.js';
+
 const Config = await import("resource:///org/gnome/shell/misc/config.js").catch(async () =>
 	await import("resource:///org/gnome/Shell/Extensions/js/misc/config.js")
 );
@@ -53,7 +56,7 @@ export function get_shell_version() {
 	return { major, minor };
 }
 
-export function add_named_connections(patcher, object) {
+export function add_named_connections<T extends Constructor<U>, U>(injector: InjectionManager, object: T) {
 	// this is used to debug things
 	/*function _get_address(object) {
 		return object.toString().slice(1, 15);
@@ -105,13 +108,13 @@ export function add_named_connections(patcher, object) {
 		return id + 100000; // this is just here to prevent any accidental usage of this id with normal disconnect
 	}
 
-	patcher.replace_method(object, function connect_named(_wrapped, source, signal, callback) {
+	injector.overrideMethod(object.prototype, "connect_named", _wrapped => function (source, signal, callback) {
 		return set_signal(this, source, signal, callback, source.connect(signal, callback));
 	});
-	patcher.replace_method(object, function connect_after_named(_wrapped, source, signal, callback) {
+	injector.overrideMethod(object.prototype, "connect_after_named", _wrapped => function (source, signal, callback) {
 		return set_signal(this, source, signal, callback, source.connect_after(signal, callback));
 	});
-	patcher.replace_method(object, function disconnect_named(_wrapped, source = undefined, signal = undefined, callback = undefined) {
+	injector.overrideMethod(object.prototype, "disconnect_named", _wrapped => function (source = undefined, signal = undefined, callback = undefined) {
 		if (typeof source === 'number') {
 			// The function was called with an id.
 			const id_to_remove = source - 100000;

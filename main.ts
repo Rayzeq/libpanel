@@ -8,13 +8,13 @@ import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 
+import { InjectionManager } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { BoxPointer, PopupAnimation } from 'resource:///org/gnome/shell/ui/boxpointer.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { QuickSettingsMenu } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
-import { Patcher } from './patcher.js';
 import {
 	add_named_connections,
 	array_insert,
@@ -958,7 +958,7 @@ export class LibPanel {
 		let instance = LibPanel.get_instance();
 		if (!instance) {
 			instance = Main.panel._libpanel = new LibPanel();
-			instance._enable();
+			instance._late_init();
 		};
 		if (instance.constructor.VERSION != VERSION)
 			console.warn(`[LibPanel] ${get_extension_uuid()} depends on libpanel ${VERSION} but libpanel ${instance.constructor.VERSION} is loaded`);
@@ -1004,21 +1004,17 @@ export class LibPanel {
 	constructor() {
 		this._enablers = [];
 
-		this._patcher = null;
 		this._settings = null;
 		this._panel_grid = null;
 		this._old_menu = null;
-	}
-
-	_enable() {
 		const this_path = '/' + split(rsplit(import.meta.url, '/', 1)[0], '/', 3)[3];;
 		this._settings = get_settings(`${this_path}/org.gnome.shell.extensions.libpanel.gschema.xml`);
 
-		// ======================== Patching ========================
-		this._patcher = new Patcher();
-		// Add named connections to objects
-		add_named_connections(this._patcher, GObject.Object);
+		this._injection_manager = new InjectionManager();
+		add_named_connections(this._injection_manager, GObject.Object);
+	}
 
+	_late_init() {
 		// =================== Replacing the popup ==================
 		this._settings.connect('changed::alignment', () => {
 			this._panel_grid._set_alignment(this._settings.get_string('alignment'));
@@ -1113,8 +1109,7 @@ export class LibPanel {
 
 		this._settings = null;
 
-		this._patcher.unpatch_all();
-		this._patcher = null;
+		this._injection_manager.clear();
 	}
 
 	_replace_menu(new_menu) {
