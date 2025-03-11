@@ -4,6 +4,7 @@
 
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
+import type Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
@@ -161,7 +162,7 @@ const GridItem = superclass => {
 			this.is_grid_item = true;
 			this.panel_name = panel_name;
 
-			this._drag_handle = DND.makeDraggable(this);
+			this._drag_handle = DND.makeDraggable(this, {});
 			this.connect_named(this._drag_handle, 'drag-begin', () => {
 				QuickSettings.menu.transparent = false;
 
@@ -1001,12 +1002,13 @@ export class LibPanel {
 		panel._keep_layout = undefined;
 	}
 
+	_enablers: string[];
+	_settings: Gio.Settings;
+	_injection_manager: InjectionManager;
+
 	constructor() {
 		this._enablers = [];
 
-		this._settings = null;
-		this._panel_grid = null;
-		this._old_menu = null;
 		const this_path = '/' + split(rsplit(import.meta.url, '/', 1)[0], '/', 3)[3];;
 		this._settings = get_settings(`${this_path}/org.gnome.shell.extensions.libpanel.gschema.xml`);
 
@@ -1097,7 +1099,7 @@ export class LibPanel {
 		this._settings.get_int('padding');
 		this._settings.get_int('row-spacing');
 		this._settings.get_int('column-spacing');
-	};
+	}
 
 	_disable() {
 		this._move_quick_settings(this._main_panel, this._old_menu);

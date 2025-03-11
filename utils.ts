@@ -8,17 +8,20 @@ const Config = await import("resource:///org/gnome/shell/misc/config.js").catch(
 	await import("resource:///org/gnome/Shell/Extensions/js/misc/config.js")
 );
 
-export function split(string, sep, maxsplit) {
+/** Python-like split */
+export function split(string: string, sep: string, maxsplit: number): string[] {
 	const splitted = string.split(sep);
 	return maxsplit ? splitted.slice(0, maxsplit).concat([splitted.slice(maxsplit).join(sep)]) : splitted;
 }
 
-export function rsplit(string, sep, maxsplit) {
+/** Python-like rsplit */
+export function rsplit(string: string, sep: string, maxsplit: number): string[] {
 	const splitted = string.split(sep);
 	return maxsplit ? [splitted.slice(0, -maxsplit).join(sep)].concat(splitted.slice(-maxsplit)) : splitted;
 }
 
-export function array_remove(array, item) {
+/** Removes an item from an array */
+export function array_remove<T>(array: T[], item: T): boolean {
 	const index = array.indexOf(item);
 	if (index > -1) {
 		array.splice(index, 1);
@@ -27,7 +30,8 @@ export function array_remove(array, item) {
 	return false;
 }
 
-export function array_insert(array, index, ...items) {
+/** Insert one or more items in an array at a specific index */
+export function array_insert<T>(array: T[], index: number, ...items: T[]) {
 	array.splice(index, 0, ...items);
 }
 
