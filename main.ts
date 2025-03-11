@@ -154,15 +154,6 @@ const GridItem = superclass => {
 
 	const klass = registerClass({
 		GTypeName: `LibPanel_GridItem_${superclass.name}`,
-		Properties: {
-			'draggable': GObject.ParamSpec.boolean(
-				'draggable',
-				'draggable',
-				'Whether this widget can be dragged',
-				GObject.ParamFlags.READWRITE,
-				true
-			),
-		},
 	}, class extends superclass {
 		constructor(panel_name, ...args) {
 			super(...args);
@@ -240,15 +231,6 @@ const GridItem = superclass => {
 					this._drag_monitor = undefined;
 				}
 			});
-		}
-
-		get draggable() {
-			return this._drag_handle._disabled || false;
-		}
-
-		set draggable(value) {
-			this._drag_handle._disabled = value;
-			this.notify('draggable');
 		}
 
 		_on_drag_motion(event) {
@@ -1034,12 +1016,6 @@ export class LibPanel {
 
 		// ======================== Patching ========================
 		this._patcher = new Patcher();
-		// Permit disabling widget dragging
-		const _Draggable = DND.makeDraggable(new St.Widget()).constructor;
-		this._patcher.replace_method(_Draggable, function _grabActor(wrapped, device, touchSequence) {
-			if (this._disabled) return;
-			wrapped(device, touchSequence);
-		});
 		// Add named connections to objects
 		add_named_connections(this._patcher, GObject.Object);
 
