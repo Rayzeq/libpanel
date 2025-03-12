@@ -976,7 +976,7 @@ export class LibPanel {
 		if (index > -1) instance._enablers.splice(index, 1);
 
 		if (instance._enablers.length === 0) {
-			instance._disable();
+			instance._destroy();
 			Main.panel._libpanel = undefined;
 		};
 	}
@@ -1101,7 +1101,7 @@ export class LibPanel {
 		this._settings.get_int('column-spacing');
 	}
 
-	_disable() {
+	_destroy() {
 		this._move_quick_settings(this._main_panel, this._old_menu);
 		this._replace_menu(this._old_menu);
 		this._old_menu = null;
