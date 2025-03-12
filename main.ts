@@ -473,7 +473,7 @@ class PanelGrid extends PopupMenu {
 		// =======================================================================================
 
 		this.box._delegate = this;  // this used so columns can get `this` using `column.get_parent()._delegate`
-		this.box.vertical = false;
+		this.box.orientation = Clutter.Orientation.HORIZONTAL;
 		this._panel_style_class = this.box.style_class; // we save the style class that's used to make a nice panel
 		this.box.style_class = ''; // and we remove it so it's invisible
 		this.box.style = `spacing: ${GRID_SPACING}px`;
@@ -626,13 +626,13 @@ class PanelGrid extends PopupMenu {
 
 const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.BoxLayout) {
 	constructor(valign, layout = []) {
-		super({ y_align: Clutter.ActorAlign.FILL, vertical: true });
+		super({ y_align: Clutter.ActorAlign.FILL, orientation: Clutter.Orientation.VERTICAL });
 		this._delegate = this;
 		this.is_panel_column = true; // since we can't use instanceof, we use this attribute
 		this._panel_layout = layout;
 
 		// `this` takes up the whole screen height, while `this._inner` is vertically aligned and contains items
-		this._inner = new St.BoxLayout({ y_expand: true, vertical: true, style: `spacing: ${GRID_SPACING}px` });
+		this._inner = new St.BoxLayout({ y_expand: true, orientation: Clutter.Orientation.VERTICAL, style: `spacing: ${GRID_SPACING}px` });
 		this._inner._delegate = this;
 		this.add_child(this._inner);
 		this._set_valign(valign);
