@@ -16,6 +16,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { QuickSettingsMenu } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
+import { registerClass } from "./main2.js";
 import {
 	add_named_connections,
 	array_insert,
@@ -35,17 +36,6 @@ const QuickSettingsLayout = QuickSettings.menu._grid.layout_manager.constructor;
 const VERSION = 1;
 // The spacing between elements of the grid, in pixels.
 const GRID_SPACING = 5;
-
-function registerClass(metadata, klass) {
-	if (klass === undefined) {
-		klass = metadata;
-		metadata = {};
-	}
-
-	metadata.GTypeName = `${metadata.GTypeName || `LibPanel_${klass.name}`}_${get_extension_uuid().replace(/[^A-Za-z_-]/g, '-')}`;
-
-	return GObject.registerClass(metadata, klass);
-}
 
 const AutoHidable = superclass => {
 	// We need to cache the created classes or else we would register the same class name multiple times
