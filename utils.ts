@@ -2,11 +2,12 @@ import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
 
 import type { InjectionManager } from 'resource:///org/gnome/shell/extensions/extension.js';
-import { Constructor } from '../utils.js';
 
 const Config = await import("resource:///org/gnome/shell/misc/config.js").catch(async () =>
 	await import("resource:///org/gnome/Shell/Extensions/js/misc/config.js")
 );
+
+export type Constructor<T> = new (...args: any[]) => T;
 
 /** Python-like split */
 export function split(string: string, sep: string, maxsplit: number): string[] {
