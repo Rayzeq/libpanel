@@ -16,7 +16,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { QuickSettingsMenu } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
-import { registerClass } from "./main2.js";
+import { registerClass } from "./utils.js";
 import {
 	add_named_connections,
 	array_insert,
@@ -27,7 +27,7 @@ import {
 	rsplit,
 	set_style,
 	split
-} from './utils.js';
+} from './utils_old.js';
 
 const MenuManager = Main.panel.menuManager;
 const QuickSettings = Main.panel.statusArea.quickSettings;
