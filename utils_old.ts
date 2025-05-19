@@ -3,23 +3,13 @@ import Gio from 'gi://Gio';
 
 import type { InjectionManager } from 'resource:///org/gnome/shell/extensions/extension.js';
 
+import { rsplit, split } from "./utils.js";
+
 const Config = await import("resource:///org/gnome/shell/misc/config.js").catch(async () =>
 	await import("resource:///org/gnome/Shell/Extensions/js/misc/config.js")
 );
 
 export type Constructor<T> = new (...args: any[]) => T;
-
-/** Python-like split */
-export function split(string: string, sep: string, maxsplit: number): string[] {
-	const splitted = string.split(sep);
-	return maxsplit ? splitted.slice(0, maxsplit).concat([splitted.slice(maxsplit).join(sep)]) : splitted;
-}
-
-/** Python-like rsplit */
-export function rsplit(string: string, sep: string, maxsplit: number): string[] {
-	const splitted = string.split(sep);
-	return maxsplit ? [splitted.slice(0, -maxsplit).join(sep)].concat(splitted.slice(-maxsplit)) : splitted;
-}
 
 /** Removes an item from an array */
 export function array_remove<T>(array: T[], item: T): boolean {
@@ -34,26 +24,6 @@ export function array_remove<T>(array: T[], item: T): boolean {
 /** Insert one or more items in an array at a specific index */
 export function array_insert<T>(array: T[], index: number, ...items: T[]) {
 	array.splice(index, 0, ...items);
-}
-
-export function get_stack() {
-	return new Error().stack.split('\n').slice(1).map(l => l.trim()).filter(Boolean).map(frame => {
-		const [func, remaining] = split(frame, '@', 1);
-		const [file, line, column] = rsplit(remaining, ':', 2);
-		return { func, file, line, column };
-	});
-}
-
-export function get_extension_uuid() {
-	const stack = get_stack();
-	for (const frame of stack.reverse()) {
-		if (frame.file.includes('/gnome-shell/extensions/')) {
-			const [left, right] = frame.file.split('@').slice(-2);
-			return `${left.split('/').at(-1)}@${right.split('/')[0]}`;
-		}
-	}
-		
-	return undefined;
 }
 
 export function get_shell_version() {

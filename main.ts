@@ -16,17 +16,14 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { QuickSettingsMenu } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
-import { registerClass } from "./utils.js";
+import { current_extension_uuid, registerClass, rsplit, split } from "./utils.js";
 import {
 	add_named_connections,
 	array_insert,
 	array_remove,
 	find_panel,
-	get_extension_uuid,
 	get_settings,
-	rsplit,
 	set_style,
-	split
 } from './utils_old.js';
 
 const MenuManager = Main.panel.menuManager;
@@ -721,7 +718,7 @@ const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.B
 
 export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Widget)) {
 	constructor(panel_name, nColumns = 2) {
-		super(`${get_extension_uuid()}/${panel_name}`, {
+		super(`${current_extension_uuid()}/${panel_name}`, {
 			// I have no idea why, but sometimes, a panel (not all of them) gets allocated too much space (behavior similar to `y-expand`)
 			// This prevent it from taking all available space
 			y_align: Clutter.ActorAlign.START,
@@ -823,7 +820,7 @@ export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Wid
 	}
 
 	removeItem(item) {
-		if (!this._grid.get_children().includes(item)) console.error(`[LibPanel] ${get_extension_uuid()} tried to remove an item not in the panel`);
+		if (!this._grid.get_children().includes(item)) console.error(`[LibPanel] ${current_extension_uuid()} tried to remove an item not in the panel`);
 
 		item.get_parent().remove_child(item);
 		if (item.menu) {
@@ -837,7 +834,7 @@ export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Wid
 	}
 
 	getColumnSpan(item) {
-		if (!this._grid.get_children().includes(item)) console.error(`[LibPanel] ${get_extension_uuid()} tried to get the column span of an item not in the panel`);
+		if (!this._grid.get_children().includes(item)) console.error(`[LibPanel] ${current_extension_uuid()} tried to get the column span of an item not in the panel`);
 
 		const value = new GObject.Value();
 		this._grid.layout_manager.child_get_property(this._grid, item, 'column-span', value);
@@ -847,7 +844,7 @@ export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Wid
 	}
 
 	setColumnSpan(item, colSpan: number) {
-		if (!this._grid.get_children().includes(item)) console.error(`[LibPanel] ${get_extension_uuid()} tried to set the column span of an item not in the panel`);
+		if (!this._grid.get_children().includes(item)) console.error(`[LibPanel] ${current_extension_uuid()} tried to set the column span of an item not in the panel`);
 
 		this._grid.layout_manager.child_set_property(this._grid, item, 'column-span', colSpan);
 	}
@@ -952,9 +949,9 @@ export class LibPanel {
 			instance._late_init();
 		};
 		if (instance.constructor.VERSION != VERSION)
-			console.warn(`[LibPanel] ${get_extension_uuid()} depends on libpanel ${VERSION} but libpanel ${instance.constructor.VERSION} is loaded`);
+			console.warn(`[LibPanel] ${current_extension_uuid()} depends on libpanel ${VERSION} but libpanel ${instance.constructor.VERSION} is loaded`);
 
-		const uuid = get_extension_uuid();
+		const uuid = current_extension_uuid();
 		if (instance._enablers.indexOf(uuid) < 0) instance._enablers.push(uuid);
 	}
 
@@ -962,7 +959,7 @@ export class LibPanel {
 		const instance = LibPanel.get_instance();
 		if (!instance) return;
 
-		const index = instance._enablers.indexOf(get_extension_uuid());
+		const index = instance._enablers.indexOf(current_extension_uuid());
 		if (index > -1) instance._enablers.splice(index, 1);
 
 		if (instance._enablers.length === 0) {
@@ -974,7 +971,7 @@ export class LibPanel {
 	static addPanel(panel) {
 		const instance = LibPanel.get_instance();
 		if (!instance)
-			console.error(`[LibPanel] ${get_extension_uuid()} tried to add a panel, but the library is disabled.`);
+			console.error(`[LibPanel] ${current_extension_uuid()} tried to add a panel, but the library is disabled.`);
 
 		if (instance._settings.get_boolean('padding-enabled'))
 			set_style(panel._grid, 'padding', `${instance._settings.get_int('padding')}px`);
