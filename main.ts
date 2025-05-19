@@ -16,12 +16,11 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { QuickSettingsMenu } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
-import { array_insert, array_remove, current_extension_uuid, registerClass, rsplit, split } from "./utils.js";
+import { array_insert, array_remove, current_extension_uuid, registerClass, rsplit, set_style_value, split } from "./utils.js";
 import {
 	add_named_connections,
 	find_panel,
 	get_settings,
-	set_style,
 } from './utils_old.js';
 
 const MenuManager = Main.panel.menuManager;
@@ -972,11 +971,11 @@ export class LibPanel {
 			console.error(`[LibPanel] ${current_extension_uuid()} tried to add a panel, but the library is disabled.`);
 
 		if (instance._settings.get_boolean('padding-enabled'))
-			set_style(panel._grid, 'padding', `${instance._settings.get_int('padding')}px`);
+			set_style_value(panel._grid, 'padding', `${instance._settings.get_int('padding')}px`);
 		if (instance._settings.get_boolean('row-spacing-enabled'))
-			set_style(panel._grid, 'spacing-rows', `${instance._settings.get_int('row-spacing')}px`);
+			set_style_value(panel._grid, 'spacing-rows', `${instance._settings.get_int('row-spacing')}px`);
 		if (instance._settings.get_boolean('column-spacing-enabled'))
-			set_style(panel._grid, 'spacing-columns', `${instance._settings.get_int('column-spacing')}px`);
+			set_style_value(panel._grid, 'spacing-columns', `${instance._settings.get_int('column-spacing')}px`);
 		instance._panel_grid._add_panel(panel);
 		instance._save_layout();
 	}
@@ -1039,7 +1038,7 @@ export class LibPanel {
 		// ================== Visual customization ==================
 		const set_style_for_panels = (name, value) => {
 			for (const panel of this._panel_grid._get_panels()) {
-				set_style(panel._grid, name, value);
+				set_style_value(panel._grid, name, value);
 			}
 		};
 

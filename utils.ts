@@ -1,4 +1,5 @@
 import GObject from "gi://GObject";
+import type St from "gi://St";
 
 type ObjectConstructor = GObject.ObjectConstructor;
 type ParamSpec = GObject.ParamSpec;
@@ -105,4 +106,25 @@ export function current_extension_uuid() {
 	}
 		
 	return undefined;
+}
+
+function get_style(widget: St.Widget): { name: string, value: string }[] {
+	return widget.style
+		?.split(";")
+		.map(x => {
+			const [name, value] = split(x, ":", 1).map(x => x.trim());
+			return { name, value };
+		})
+		.filter(x => x.name !== "") || [];
+}
+
+export function set_style_value(widget: St.Widget, name: string, value: string | number | null) {
+	let style = <{ name: string, value: string | number }[]>get_style(widget).filter(x => x.name !== name);
+
+	if (value !== null)
+		style.push({ name, value });
+
+	widget.style = style
+		.map(({ name, value }) => `${name}: ${value}`)
+		.join(";");
 }

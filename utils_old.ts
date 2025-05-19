@@ -3,7 +3,7 @@ import Gio from 'gi://Gio';
 
 import type { InjectionManager } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import { rsplit, split } from "./utils.js";
+import { rsplit } from "./utils.js";
 
 export type Constructor<T> = new (...args: any[]) => T;
 
@@ -164,23 +164,3 @@ export function get_settings(path) {
 	return new Gio.Settings({ settings_schema: source.lookup(id, true) });
 }
 
-export function get_style(widget) {
-	return widget.style
-		?.split(';')
-		.map(x => {
-			const [name, value] = split(x, ':', 1).map(x => x.trim());
-			return { name, value };
-		})
-		.filter(x => x.name !== '') || [];
-}
-
-export function set_style(widget, name, value) {
-	let style = get_style(widget).filter(x => x.name !== name);
-
-	if (value !== null)
-		style.push({ name, value });
-
-	widget.style = style
-		.map(({ name, value }) => `${name}: ${value}`)
-		.join(';');
-}
