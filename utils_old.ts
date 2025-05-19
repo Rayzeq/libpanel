@@ -5,16 +5,7 @@ import type { InjectionManager } from 'resource:///org/gnome/shell/extensions/ex
 
 import { rsplit, split } from "./utils.js";
 
-const Config = await import("resource:///org/gnome/shell/misc/config.js").catch(async () =>
-	await import("resource:///org/gnome/Shell/Extensions/js/misc/config.js")
-);
-
 export type Constructor<T> = new (...args: any[]) => T;
-
-export function get_shell_version() {
-	const [major, minor] = Config.PACKAGE_VERSION.split('.').map(s => Number(s));
-	return { major, minor };
-}
 
 export function add_named_connections<T extends Constructor<U>, U>(injector: InjectionManager, object: T) {
 	// this is used to debug things
