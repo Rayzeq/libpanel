@@ -1,9 +1,6 @@
 import GObject from 'gi://GObject';
-import Gio from 'gi://Gio';
 
 import type { InjectionManager } from 'resource:///org/gnome/shell/extensions/extension.js';
-
-import { rsplit } from "./utils.js";
 
 export type Constructor<T> = new (...args: any[]) => T;
 
@@ -152,15 +149,3 @@ export function find_panel(widget) {
 
 	return panels.at(-1);
 }
-
-export function get_settings(path) {
-	const [parent_path, file] = rsplit(path, '/', 1);
-	const id = rsplit(file, '.', 2)[0];
-	const source = Gio.SettingsSchemaSource.new_from_directory(
-		parent_path,
-		Gio.SettingsSchemaSource.get_default(),
-		false
-	);
-	return new Gio.Settings({ settings_schema: source.lookup(id, true) });
-}
-

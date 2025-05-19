@@ -1,3 +1,4 @@
+import Gio from "gi://Gio";
 import GObject from "gi://GObject";
 import type St from "gi://St";
 
@@ -94,7 +95,7 @@ export function get_stack(): StackFrame[] | undefined {
 	});
 }
 
-export function current_extension_uuid() {
+export function current_extension_uuid(): string | undefined {
 	const stack = get_stack();
 	if (stack === undefined) return undefined;
 
@@ -127,4 +128,20 @@ export function set_style_value(widget: St.Widget, name: string, value: string |
 	widget.style = style
 		.map(({ name, value }) => `${name}: ${value}`)
 		.join(";");
+}
+
+export function get_settings(path: string): Gio.Settings {
+	const [parent_path, file] = rsplit(path, '/', 1);
+	const id = rsplit(file, '.', 2)[0];
+	const source = Gio.SettingsSchemaSource.new_from_directory(
+		parent_path,
+		Gio.SettingsSchemaSource.get_default(),
+		false
+	);
+
+	const schema = source.lookup(id, true)
+	if (schema === null)
+		throw new Error(`Could not find settings schema: ${path}`);
+
+	return new Gio.Settings({ settings_schema: schema });
 }

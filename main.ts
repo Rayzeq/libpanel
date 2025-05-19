@@ -16,11 +16,19 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { QuickSettingsMenu } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
-import { array_insert, array_remove, current_extension_uuid, registerClass, rsplit, set_style_value, split } from "./utils.js";
+import {
+	array_insert,
+	array_remove,
+	current_extension_uuid,
+	get_settings,
+	registerClass,
+	rsplit,
+	set_style_value,
+	split,
+} from "./utils.js";
 import {
 	add_named_connections,
 	find_panel,
-	get_settings,
 } from './utils_old.js';
 
 const MenuManager = Main.panel.menuManager;
@@ -993,7 +1001,7 @@ export class LibPanel {
 	constructor() {
 		this._enablers = [];
 
-		const this_path = '/' + split(rsplit(import.meta.url, '/', 1)[0], '/', 3)[3];;
+		const this_path = '/' + split(rsplit(import.meta.url, '/', 1)[0], '/', 3)[3];
 		this._settings = get_settings(`${this_path}/org.gnome.shell.extensions.libpanel.gschema.xml`);
 
 		this._injection_manager = new InjectionManager();
