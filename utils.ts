@@ -63,7 +63,22 @@ export function rsplit(string: string, sep: string, maxsplit: number): string[] 
 	return maxsplit ? [splitted.slice(0, -maxsplit).join(sep)].concat(splitted.slice(-maxsplit)) : splitted;
 }
 
-type StackFrame = {
+/** Removes an item from an array and returns whether there was something to remove */
+export function array_remove<T>(array: T[], item: T): boolean {
+	const index = array.indexOf(item);
+	if (index > -1) {
+		array.splice(index, 1);
+		return true;
+	}
+	return false;
+}
+
+/** Insert one or more items in an array at a specific index */
+export function array_insert<T>(array: T[], index: number, ...items: T[]) {
+	array.splice(index, 0, ...items);
+}
+
+export type StackFrame = {
 	func: string,
 	file: string,
 	line: string,

@@ -11,21 +11,6 @@ const Config = await import("resource:///org/gnome/shell/misc/config.js").catch(
 
 export type Constructor<T> = new (...args: any[]) => T;
 
-/** Removes an item from an array */
-export function array_remove<T>(array: T[], item: T): boolean {
-	const index = array.indexOf(item);
-	if (index > -1) {
-		array.splice(index, 1);
-		return true;
-	}
-	return false;
-}
-
-/** Insert one or more items in an array at a specific index */
-export function array_insert<T>(array: T[], index: number, ...items: T[]) {
-	array.splice(index, 0, ...items);
-}
-
 export function get_shell_version() {
 	const [major, minor] = Config.PACKAGE_VERSION.split('.').map(s => Number(s));
 	return { major, minor };

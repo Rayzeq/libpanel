@@ -16,11 +16,9 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { QuickSettingsMenu } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
-import { current_extension_uuid, registerClass, rsplit, split } from "./utils.js";
+import { array_insert, array_remove, current_extension_uuid, registerClass, rsplit, split } from "./utils.js";
 import {
 	add_named_connections,
-	array_insert,
-	array_remove,
 	find_panel,
 	get_settings,
 	set_style,
