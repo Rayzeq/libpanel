@@ -16,6 +16,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { QuickSettingsMenu } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
+import { Semitransparent } from "./mixins.js";
 import {
 	array_insert,
 	array_remove,
@@ -95,48 +96,6 @@ const AutoHidable = superclass => {
 		}
 	});
 	AutoHidable.cache[superclass.name] = klass;
-	return klass;
-};
-
-const Semitransparent = superclass => {
-	// We need to cache the created classes or else we would register the same class name multiple times
-	if (Semitransparent.cache === undefined) Semitransparent.cache = {};
-	if (Semitransparent.cache[superclass.name] !== undefined) return Semitransparent.cache[superclass.name];
-
-	const klass = registerClass({
-		GTypeName: `LibPanel_Semitransparent_${superclass.name}`,
-		Properties: {
-			'transparent': GObject.ParamSpec.boolean(
-				'transparent',
-				'Transparent',
-				'Whether this widget is transparent to pointer events',
-				GObject.ParamFlags.READWRITE,
-				true
-			),
-		},
-	}, class extends superclass {
-		get transparent() {
-			if (this._transparent === undefined)
-				this._transparent = true;
-
-			return this._transparent;
-		}
-
-		set transparent(value) {
-			this._transparent = value;
-			this.notify('transparent');
-		}
-
-		vfunc_pick(context: Clutter.PickContext) {
-			if (!this.transparent) {
-				super.vfunc_pick(context);
-			}
-			for (const child of this.get_children()) {
-				child.pick(context);
-			}
-		}
-	});
-	Semitransparent.cache[superclass.name] = klass;
 	return klass;
 };
 
