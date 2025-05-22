@@ -27,7 +27,7 @@ export function Semitransparent<T extends Constructor<Clutter.Actor>>(superclass
                 true
             ),
         },
-    }, class extends superclass {
+    }, class extends superclass implements SemitransparentInterface {
         private _transparent?: boolean;
 
         get transparent(): boolean {
