@@ -30,18 +30,18 @@ export function Semitransparent<T extends Constructor<Clutter.Actor>>(superclass
     }, class extends superclass implements SemitransparentInterface {
         private _transparent?: boolean;
 
-        get transparent(): boolean {
+        public get transparent(): boolean {
             if (this._transparent === undefined) this._transparent = true;
             return this._transparent;
         }
 
-        set transparent(value: boolean) {
+        public set transparent(value: boolean) {
             if (this._transparent === value) return;
             this._transparent = value;
             this.notify("transparent");
         }
 
-        override vfunc_pick(context: Clutter.PickContext): void {
+        public override vfunc_pick(context: Clutter.PickContext): void {
             if (!this.transparent) super.vfunc_pick(context);
             for (const child of this.get_children()) child.pick(context);
         }
