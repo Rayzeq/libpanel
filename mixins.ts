@@ -51,6 +51,6 @@ export function Semitransparent<T extends Constructor<Clutter.Actor>>(superclass
     return klass;
 };
 
-export namespace Semitransparent {
+export declare namespace Semitransparent {
     export let cache: Map<string, Semitransparent<Clutter.Actor>> | undefined;
 }
