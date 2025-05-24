@@ -16,6 +16,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { QuickSettingsMenu } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
+import FullscreenBoxpointer from "./boxpointer.js";
 import { Semitransparent } from "./mixins.js";
 import {
 	array_insert,
@@ -251,151 +252,6 @@ const DropZone = registerClass(class DropZone extends St.Widget {
 	}
 });
 
-const AlignedBoxpointer = registerClass(class AlignedBoxpointer extends Semitransparent(BoxPointer) {
-	constructor(arrowSide: St.Side, binProperties?: Partial<St.Bin.ConstructorProps>) {
-		super(arrowSide, binProperties);
-		this._alignment = "right";
-	}
-
-	_reposition(allocationBox: Clutter.ActorBox): void {
-		// code copied and modified from: https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/boxpointer.js#L463
-		let sourceActor = this._sourceActor;
-		let alignment = this._arrowAlignment;
-		let monitorIndex = Main.layoutManager.findIndexForActor(sourceActor);
-
-		this._sourceExtents = sourceActor.get_transformed_extents();
-		this._workArea = Main.layoutManager.getWorkAreaForMonitor(monitorIndex);
-
-		// Position correctly relative to the sourceActor
-		const sourceAllocation = sourceActor.get_allocation_box();
-		const sourceContentBox = sourceActor instanceof St.Widget
-			? sourceActor.get_theme_node().get_content_box(sourceAllocation)
-			: new Clutter.ActorBox({
-				x2: sourceAllocation.get_width(),
-				y2: sourceAllocation.get_height(),
-			});
-		let sourceTopLeft = this._sourceExtents.get_top_left();
-		let sourceBottomRight = this._sourceExtents.get_bottom_right();
-		let sourceCenterX = sourceTopLeft.x + sourceContentBox.x1 + (sourceContentBox.x2 - sourceContentBox.x1) * this._sourceAlignment;
-		let sourceCenterY = sourceTopLeft.y + sourceContentBox.y1 + (sourceContentBox.y2 - sourceContentBox.y1) * this._sourceAlignment;
-		let [, , natWidth, natHeight] = this.get_preferred_size();
-
-		// We also want to keep it onscreen, and separated from the
-		// edge by the same distance as the main part of the box is
-		// separated from its sourceActor
-		let workarea = this._workArea;
-		let themeNode = this.get_theme_node();
-		let borderWidth = themeNode.get_length('-arrow-border-width');
-		let arrowBase = themeNode.get_length('-arrow-base');
-		let borderRadius = themeNode.get_length('-arrow-border-radius');
-		let margin = 4 * borderRadius + borderWidth + arrowBase;
-
-		let gap = themeNode.get_length('-boxpointer-gap');
-		let padding = themeNode.get_length('-arrow-rise');
-
-		let resX, resY;
-
-		switch (this._arrowSide) {
-			case St.Side.TOP:
-				// `gap` is 0
-				// the thing that creates a gap is `padding`
-				// it's added to allocation of the children of this actor, see BoxPointer.vfunc_allocate
-				resY = sourceBottomRight.y + gap;
-				allocationBox.set_size(allocationBox.get_width(), workarea.height - 2 * gap - padding);
-				break;
-			case St.Side.BOTTOM:
-				// needs to be relative to `sourceTopLeft.y` to correctly support multi-monitor setups
-				resY = sourceTopLeft.y - workarea.height + gap + padding;
-				allocationBox.set_size(allocationBox.get_width(), workarea.height - 2 * gap - padding);
-				break;
-			case St.Side.LEFT:
-				resX = sourceBottomRight.x + gap;
-				break;
-			case St.Side.RIGHT:
-				resX = sourceTopLeft.x - natWidth - gap;
-				break;
-		}
-
-		// Now align and position the pointing axis, making sure it fits on
-		// screen. If the arrowOrigin is so close to the edge that the arrow
-		// will not be isosceles, we try to compensate as follows:
-		//   - We skip the rounded corner and settle for a right angled arrow
-		//     as shown below. See _drawBorder for further details.
-		//     |\_____
-		//     |
-		//     |
-		//   - If the arrow was going to be acute angled, we move the position
-		//     of the box to maintain the arrow's accuracy.
-
-		let arrowOrigin;
-		let halfBase = Math.floor(arrowBase / 2);
-		let halfBorder = borderWidth / 2;
-		let halfMargin = margin / 2;
-		let [x1, y1] = [halfBorder, halfBorder];
-		let [x2, y2] = [natWidth - halfBorder, natHeight - halfBorder];
-
-		switch (this._arrowSide) {
-			case St.Side.TOP:
-			case St.Side.BOTTOM:
-				if (this.text_direction === Clutter.TextDirection.RTL)
-					alignment = 1.0 - alignment;
-
-				resX = sourceCenterX - (halfMargin + (natWidth - margin) * alignment);
-
-				if (this._alignment == "right") {
-					resX = Math.max(resX, workarea.x + padding);
-					resX = Math.min(resX, workarea.x + workarea.width - (padding + natWidth));
-				} else if (this._alignment == "left") {
-					resX = Math.min(resX, workarea.x + workarea.width - (padding + natWidth));
-					resX = Math.max(resX, workarea.x + padding);
-				}
-
-				arrowOrigin = sourceCenterX - resX;
-				if (arrowOrigin <= (x1 + (borderRadius + halfBase))) {
-					if (arrowOrigin > x1)
-						resX += arrowOrigin - x1;
-					arrowOrigin = x1;
-				} else if (arrowOrigin >= (x2 - (borderRadius + halfBase))) {
-					if (arrowOrigin < x2)
-						resX -= x2 - arrowOrigin;
-					arrowOrigin = x2;
-				}
-				break;
-
-			case St.Side.LEFT:
-			case St.Side.RIGHT:
-				resY = sourceCenterY - (halfMargin + (natHeight - margin) * alignment);
-
-				resY = Math.max(resY, workarea.y + padding);
-				resY = Math.min(resY, workarea.y + workarea.height - (padding + natHeight));
-
-				arrowOrigin = sourceCenterY - resY;
-				if (arrowOrigin <= (y1 + (borderRadius + halfBase))) {
-					if (arrowOrigin > y1)
-						resY += arrowOrigin - y1;
-					arrowOrigin = y1;
-				} else if (arrowOrigin >= (y2 - (borderRadius + halfBase))) {
-					if (arrowOrigin < y2)
-						resY -= y2 - arrowOrigin;
-					arrowOrigin = y2;
-				}
-				break;
-		}
-
-		this.setArrowOrigin(arrowOrigin);
-
-		let parent = this.get_parent();
-		let success, x, y;
-		while (!success) {
-			[success, x, y] = parent.transform_stage_point(resX, resY);
-			parent = parent.get_parent();
-		}
-
-		// Actually set the position
-		allocationBox.set_origin(Math.floor(x), Math.floor(y));
-	}
-});
-
 class PanelGrid extends PopupMenu {
 	constructor(sourceActor, alignment, single_column) {
 		super(sourceActor, 0, St.Side.TOP);
@@ -410,7 +266,7 @@ class PanelGrid extends PopupMenu {
 		// https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/popupMenu.js#L801
 
 		// We want to make the actor transparent
-		this._boxPointer = new AlignedBoxpointer(this._arrowSide);
+		this._boxPointer = new FullscreenBoxpointer(this._arrowSide);
 		this.actor = this._boxPointer;
 		this.actor._delegate = this;
 		this.actor.style_class = 'popup-menu-boxpointer';
