@@ -10,7 +10,7 @@ import GObject from 'gi://GObject';
 import St from 'gi://St';
 
 import { InjectionManager } from 'resource:///org/gnome/shell/extensions/extension.js';
-import { BoxPointer, PopupAnimation } from 'resource:///org/gnome/shell/ui/boxpointer.js';
+import { PopupAnimation } from 'resource:///org/gnome/shell/ui/boxpointer.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';

@@ -151,10 +151,12 @@ export const FullscreenBoxpointer = registerClass(class PanelGrid extends Semitr
 
 	public setPosition(sourceActor: Clutter.Actor | undefined, alignment: number) {
 		if (!this._sourceActor || sourceActor !== this._sourceActor) {
+			// @ts-expect-error: `disconnectObject` is added on `GObject.Object` by gnome shell (see environment.js)
 			this._sourceActor?.disconnectObject(this);
 
 			this._sourceActor = sourceActor;
 
+			// @ts-expect-error: `connectObject` is added on `GObject.Object` by gnome shell (see environment.js)
 			this._sourceActor?.connectObject('destroy', () => (this._sourceActor = null), this);
 		}
 
@@ -193,7 +195,7 @@ export const FullscreenBoxpointer = registerClass(class PanelGrid extends Semitr
 			}
 		}
 
-		// @ts-expect-error: `ease` is added on `Clutter.Actor` by gnome shell
+		// @ts-expect-error: `ease` is added on `Clutter.Actor` by gnome shell (see environment.js)
 		this.ease({
 			opacity: 255,
 			translation_x: 0,
@@ -240,7 +242,7 @@ export const FullscreenBoxpointer = registerClass(class PanelGrid extends Semitr
 		this._muteKeys = true;
 
 		this.remove_all_transitions();
-		// @ts-expect-error: `ease` is added on `Clutter.Actor` by gnome shell
+		// @ts-expect-error: `ease` is added on `Clutter.Actor` by gnome shell (see environment.js)
 		this.ease({
 			opacity: fade ? 0 : 255,
 			translation_x: translationX,
