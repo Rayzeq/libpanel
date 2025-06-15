@@ -12,6 +12,10 @@ import { registerClass } from "./utils.js";
 const POPUP_ANIMATION_TIME = 150;
 
 export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer extends Semitransparent(St.Widget) {
+	/** Will be left or right if the arrow is at the top or bottom and vice versa */
+	public secondary_side: St.Side;
+	public center: number;
+
 	// Note: to make this class look like an actual BoxPointer, do not rename those fields
 	public bin: St.Bin;
 
@@ -42,6 +46,19 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 
 		this.bin = new St.Bin(binProperties);
 		this.add_child(this.bin);
+
+		// We don't really care about the default value, as long as it's coherent with this._arrowSide
+		switch (arrowSide) {
+			case St.Side.TOP:
+			case St.Side.BOTTOM:
+				this.secondary_side = St.Side.LEFT;
+				break;
+			case St.Side.LEFT:
+			case St.Side.RIGHT:
+				this.secondary_side = St.Side.TOP;
+				break;
+		};
+		this.center = 0;
 
 		this.connect('notify::visible', () => {
 			if (this.visible)
@@ -263,6 +280,8 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 	_update_arrow_side(source_extents: Graphene.Rect, workarea: Mtk.Rectangle) {
 		const source_top_left = source_extents.get_top_left();
 		const source_bottom_right = source_extents.get_bottom_right();
+		const source_horizontal_center = (source_top_left.x + source_bottom_right.x) / 2;
+		const source_vertical_center = (source_top_left.y + source_bottom_right.y) / 2;
 
 		// Note: _calculateArrowSide flips if the preferred size overflows the screen.
 		// Since our preferred size is always the whole screen, we flip if flipping would
@@ -276,6 +295,13 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 					this._arrowSide = St.Side.BOTTOM;
 				else
 					this._arrowSide = St.Side.TOP;
+
+				if (source_horizontal_center < workarea.x + workarea.width / 2)
+					this.secondary_side = St.Side.LEFT;
+				else
+					this.secondary_side = St.Side.RIGHT;
+
+				this.center = source_horizontal_center;
 				break;
 			case St.Side.LEFT:
 			case St.Side.RIGHT:
@@ -285,6 +311,13 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 					this._arrowSide = St.Side.RIGHT;
 				else
 					this._arrowSide = St.Side.LEFT;
+
+				if (source_vertical_center < workarea.y + workarea.height / 2)
+					this.secondary_side = St.Side.TOP;
+				else
+					this.secondary_side = St.Side.BOTTOM;
+
+				this.center = source_vertical_center;
 				break;
 		}
 	}
