@@ -70,28 +70,25 @@ export const FullscreenBoxpointer = registerClass(class PanelGrid extends Semitr
 		const padding = theme_node.get_length('-arrow-rise');
 		const base_space = gap + padding;
 
+		let space;
 		switch (this._arrowSide) {
-			case St.Side.TOP: {
-				const space = base_space + source_extents.get_bottom_right().y - workarea.y;
-				box.y1 += space;
+			case St.Side.TOP:
+				space = base_space + source_extents.get_bottom_right().y - workarea.y;
 				break;
-			}
-			case St.Side.BOTTOM: {
-				const space = base_space + workarea.y + workarea.height - source_extents.get_top_left().y;
-				box.y2 -= space;
+			case St.Side.BOTTOM:
+				space = base_space + workarea.y + workarea.height - source_extents.get_top_left().y;
 				break;
-			}
-			case St.Side.LEFT: {
-				const space = base_space + source_extents.get_bottom_right().x - workarea.x;
-				box.x1 += space;
+			case St.Side.LEFT:
+				space = base_space + source_extents.get_bottom_right().x - workarea.x;
 				break;
-			}
-			case St.Side.RIGHT: {
-				const space = base_space + workarea.x + workarea.width - source_extents.get_top_left().x;
-				box.x2 -= space;
+			case St.Side.RIGHT:
+				space = base_space + workarea.x + workarea.width - source_extents.get_top_left().x;
 				break;
-			}
 		}
+		box.x1 += space;
+		box.x2 -= space;
+		box.y1 += space;
+		box.y2 -= space;
 	}
 
 	public override vfunc_get_preferred_width(_forHeight: number): [number, number] {
