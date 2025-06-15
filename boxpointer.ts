@@ -11,7 +11,7 @@ import { registerClass } from "./utils.js";
 
 const POPUP_ANIMATION_TIME = 150;
 
-export const FullscreenBoxpointer = registerClass(class PanelGrid extends Semitransparent(St.Widget) {
+export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer extends Semitransparent(St.Widget) {
 	public bin: St.Bin;
 
 	private _sourceAlignment: number;
