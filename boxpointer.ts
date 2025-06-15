@@ -12,13 +12,15 @@ import { registerClass } from "./utils.js";
 const POPUP_ANIMATION_TIME = 150;
 
 export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer extends Semitransparent(St.Widget) {
+	// Note: to make this class look like an actual BoxPointer, do not rename those fields
 	public bin: St.Bin;
 
 	private _sourceAlignment: number;
 	private _sourceActor?: Clutter.Actor | null;
 
-	private _arrowSide: St.Side;
-	private _userArrowSide: St.Side;
+	/** @internal */
+	public _arrowSide: St.Side;
+	public _userArrowSide: St.Side;
 	private _arrowOrigin: number;
 	private _arrowAlignment: number;
 
