@@ -261,8 +261,8 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 
 	// Based on _calculateArrowSide
 	_update_arrow_side(source_extents: Graphene.Rect, workarea: Mtk.Rectangle) {
-		const sourceTopLeft = source_extents.get_top_left();
-		const sourceBottomRight = source_extents.get_bottom_right();
+		const source_top_left = source_extents.get_top_left();
+		const source_bottom_right = source_extents.get_bottom_right();
 
 		// Note: _calculateArrowSide flips if the preferred size overflows the screen.
 		// Since our preferred size is always the whole screen, we flip if flipping would
@@ -270,8 +270,8 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 		switch (this._userArrowSide) {
 			case St.Side.TOP:
 			case St.Side.BOTTOM:
-				const top_half_height = sourceTopLeft.y - workarea.y;
-				const bottom_half_height = workarea.y + workarea.height - sourceBottomRight.y;
+				const top_half_height = source_top_left.y - workarea.y;
+				const bottom_half_height = workarea.y + workarea.height - source_bottom_right.y;
 				if (top_half_height > bottom_half_height)
 					this._arrowSide = St.Side.BOTTOM;
 				else
@@ -279,8 +279,8 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 				break;
 			case St.Side.LEFT:
 			case St.Side.RIGHT:
-				const left_half_width = sourceTopLeft.x - workarea.x;
-				const right_half_width = workarea.x + workarea.width - sourceBottomRight.x;
+				const left_half_width = source_top_left.x - workarea.x;
+				const right_half_width = workarea.x + workarea.width - source_bottom_right.x;
 				if (left_half_width > right_half_width)
 					this._arrowSide = St.Side.RIGHT;
 				else
