@@ -13,14 +13,11 @@ import { InjectionManager } from 'resource:///org/gnome/shell/extensions/extensi
 import { PopupAnimation } from 'resource:///org/gnome/shell/ui/boxpointer.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import { PopupMenu } from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import { QuickSettingsMenu } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
-import FullscreenBoxpointer from "./boxpointer.js";
+import PanelGridMenu from "./menu.js";
 import { Semitransparent } from "./mixins.js";
 import {
-	array_insert,
-	array_remove,
 	current_extension_uuid,
 	get_settings,
 	registerClass,
@@ -38,8 +35,6 @@ const QuickSettings = Main.panel.statusArea.quickSettings;
 const QuickSettingsLayout = QuickSettings.menu._grid.layout_manager.constructor;
 
 const VERSION = 1;
-// The spacing between elements of the grid, in pixels.
-const GRID_SPACING = 5;
 
 const AutoHidable = superclass => {
 	// We need to cache the created classes or else we would register the same class name multiple times
@@ -252,290 +247,6 @@ const DropZone = registerClass(class DropZone extends St.Widget {
 	}
 });
 
-class PanelGrid extends PopupMenu {
-	constructor(sourceActor, alignment, single_column) {
-		super(sourceActor, 0, St.Side.TOP);
-		this._valign = "top";
-		this._single_column = single_column;
-
-		// ==== We replace the BoxPointer with our own because we want to make it transparent ====
-		global.focus_manager.remove_group(this._boxPointer);
-		this._boxPointer.bin.set_child(null); // prevent `this.box` from being destroyed
-		this._boxPointer.destroy();
-		// The majority of this code has been copied from here:
-		// https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/popupMenu.js#L801
-
-		// We want to make the actor transparent
-		this._boxPointer = new FullscreenBoxpointer(this._arrowSide);
-		this.actor = this._boxPointer;
-		this.actor._delegate = this;
-		this.actor.style_class = 'popup-menu-boxpointer';
-
-		this._boxPointer.bin.set_child(this.box);
-		this.actor.add_style_class_name('popup-menu');
-		this.actor.add_style_class_name('QSAP-panel-grid');
-
-		global.focus_manager.add_group(this.actor);
-		this.actor.reactive = true;
-		// =======================================================================================
-
-		this.box._delegate = this;  // this used so columns can get `this` using `column.get_parent()._delegate`
-		this.box.orientation = Clutter.Orientation.HORIZONTAL;
-		this._panel_style_class = this.box.style_class; // we save the style class that's used to make a nice panel
-		this.box.style_class = ''; // and we remove it so it's invisible
-		this.box.style = `spacing: ${GRID_SPACING}px`;
-		this._set_alignment(alignment);
-
-		this.actor.connect_after('notify::allocation', () => {
-			if (!this._single_column) {
-				// The `setTimeout` fixes the following warning:
-				// Can't update stage views actor ... is on because it needs an allocation.
-				if ((this._alignment == "right" && this.actor.x > 0)
-					|| (this._alignment == "left" && this.actor.x + this.actor.width < this.actor.get_parent().allocation.x2))
-					this._timeout_id = setTimeout(() => {
-						this._timeout_id = null;
-						this._add_column();
-					}, 0);
-			}
-
-			// this may invalidate the allocation, so this must be after the size checks
-			if (this._boxPointer._sourceActor.get_transformed_position()[1] > (this._boxPointer.get_parent().allocation.y2 / 2)) {
-				this._set_valign("bottom");
-			} else {
-				this._set_valign("top");
-			}
-		});
-		this.actor.connect('destroy', () => {
-			if (this._timeout_id) clearTimeout(this._timeout_id);
-		});
-	}
-
-	_set_alignment(alignment) {
-		if (alignment != this._alignment) {
-			for (const column of this.box.get_children().toReversed()) {
-				this.box.remove_child(column);
-				// remove placeholder columns, they'll be recreated automatically
-				if (!column.get_constraints().includes(column._width_constraint)) {
-					this.box.add_child(column);
-				}
-			}
-		}
-
-		this._alignment = alignment;
-		this._boxPointer._alignment = alignment;
-	}
-
-	_set_is_single_column(single_column) {
-		this._single_column = single_column;
-
-		const panels = this._get_panels();
-		for (const panel of panels) {
-			panel.get_parent().remove_child(panel);
-		}
-
-		for (const column of this.box.get_children()) {
-			column.get_parent().remove_child(column);
-			column.destroy();
-		}
-
-		for (const panel of panels) {
-			this._add_panel(panel);
-		}
-
-		this.actor.notify("allocation");
-	}
-
-	_set_valign(alignment) {
-		this._valign = alignment;
-		for (const column of this.box.get_children()) {
-			column._set_valign(alignment);
-		}
-	}
-
-	get transparent() {
-		return this.actor.transparent;
-	}
-
-	set transparent(value) {
-		this.actor.transparent = value;
-	}
-
-	close(animate) {
-		for (const column of this.box.get_children()) {
-			column._close();
-		}
-		super.close(animate);
-	}
-
-	_add_panel(panel) {
-		if (this.box.get_children().length === 0) {
-			this._add_column()._add_panel(panel);
-			return;
-		}
-
-		for (const column of this.box.get_children()) {
-			if (this._single_column || column._panel_layout.indexOf(panel.panel_name) > -1) {
-				column._add_panel(panel);
-				return;
-			}
-		}
-
-		// Everything here is really approximated because we can't have the allocations boxes at this point
-		// Most notably, `max_height` will be wrong
-		const max_height = this._boxPointer.get_parent()?.height || this.actor.height;
-		let column;
-		for (const children of this.box.get_children().reverse()) {
-			if (this._get_column_height(children) < max_height) {
-				column = children;
-				break;
-			}
-		}
-		if (!column) column = this.box.first_child;
-		if (this._get_column_height(column) > max_height) {
-			column = this._add_column();
-		}
-		column._add_panel(panel);
-	}
-
-	_get_column_height(column) {
-		return column.get_children().reduce((acc, widget) => acc + widget.height, 0);
-	}
-
-	_add_column(layout = []) {
-		const column = new PanelColumn(this._valign, layout);
-		this.actor.bind_property('transparent', column, 'transparent', GObject.BindingFlags.SYNC_CREATE);
-		if (this._alignment == "left") {
-			this.box.add_child(column);
-		} else if (this._alignment == "right") {
-			this.box.insert_child_at_index(column, 0);
-		}
-		return column;
-	}
-
-	_get_panel_layout() {
-		const layout = this.box.get_children().map(column => column._panel_layout);
-		if (this._alignment == "left") layout.reverse();
-		return layout;
-	}
-
-	_cleanup() {
-		if (this._alignment == "left") {
-			while (this.box.first_child._inner.get_children().length === 0) this.box.first_child.destroy();
-		} else if (this._alignment == "right") {
-			while (this.box.last_child._inner.get_children().length === 0) this.box.last_child.destroy();
-		}
-	}
-
-	_get_panels() {
-		return this.box.get_children().map(column => column._delegate._inner.get_children()).flat();
-	}
-}
-
-const PanelColumn = registerClass(class PanelColumn extends Semitransparent(St.BoxLayout) {
-	constructor(valign, layout = []) {
-		super({ y_align: Clutter.ActorAlign.FILL, orientation: Clutter.Orientation.VERTICAL });
-		this._delegate = this;
-		this.is_panel_column = true; // since we can't use instanceof, we use this attribute
-		this._panel_layout = layout;
-
-		// `this` takes up the whole screen height, while `this._inner` is vertically aligned and contains items
-		this._inner = new St.BoxLayout({ y_expand: true, orientation: Clutter.Orientation.VERTICAL, style: `spacing: ${GRID_SPACING}px` });
-		this._inner._delegate = this;
-		this.add_child(this._inner);
-		this._set_valign(valign);
-
-		this._inhibit_constraint_update = false;
-		this._width_constraint = new Clutter.BindConstraint({
-			coordinate: Clutter.BindCoordinate.WIDTH,
-			source: null,
-		});
-		this.add_constraint(this._width_constraint);
-
-		this.connect_after_named(this._inner, 'child-added', (_self, child) => {
-			if (this._inner.get_children().length === 1) this.remove_constraint(this._width_constraint);
-			if (!child.is_grid_item) return;
-
-			const prev_index = this._panel_layout.indexOf(child.get_previous_sibling()?.panel_name);
-			const index = this._panel_layout.indexOf(child.panel_name);
-			const next_index = this._panel_layout.indexOf(child.get_next_sibling()?.panel_name);
-			// `child` is in the layout but is misplaced
-			if (index > -1 && ((prev_index > -1 && index < prev_index) || (next_index > -1 && next_index < index))) {
-				array_remove(this._panel_layout, child.panel_name);
-				index = -1;
-			}
-			if (index < 0) { // `child` is not in the layout
-				if (prev_index > -1)
-					array_insert(this._panel_layout, prev_index + 1, child.panel_name);
-				else if (next_index > 0)
-					array_insert(this._panel_layout, next_index - 1, child.panel_name);
-				else
-					array_insert(this._panel_layout, 0, child.panel_name);
-			}
-		});
-		this.connect_after_named(this._inner, 'child-removed', (_self, child) => {
-			if (this._inner.get_children().length === 0) this.add_constraint(this._width_constraint);
-			if (child._keep_layout || !child.is_grid_item) return;
-
-			array_remove(this._panel_layout, child.panel_name);
-		});
-
-		this.connect('destroy', () => this._is_destroyed = true);
-		this.connect_after_named(this, 'parent-set', (_self, old_parent) => {
-			if (old_parent !== null) this.disconnect_named(old_parent);
-
-			const parent = this.get_parent();
-			if (parent === null) return;
-			const update_source = (_parent, _actor) => {
-				// clutter is being dumb and emit this signal even though `_parent` and `this` are destroyed
-				// this fix it
-				if (this._is_destroyed || this._inhibit_constraint_update) return;
-
-				const alignment = this.get_parent()._delegate._alignment;
-				if (alignment == "left") {
-					this._width_constraint.source = this.get_previous_sibling();
-				} else if (alignment == "right") {
-					this._width_constraint.source = this.get_next_sibling();
-				}
-			};
-			this.connect_after_named(parent, 'child-added', update_source);
-			this.connect_after_named(parent, 'child-removed', update_source);
-
-			update_source();
-		});
-	}
-
-	_set_valign(alignment) {
-		if (alignment == "top") {
-			this._inner.y_align = Clutter.ActorAlign.START;
-		} else {
-			this._inner.y_align = Clutter.ActorAlign.END;
-		}
-	}
-
-	_close() {
-		for (const panel of this._inner.get_children()) {
-			panel._close();
-		}
-	}
-
-	_add_panel(panel) {
-		const index = this._panel_layout.indexOf(panel.panel_name);
-		if (index > -1) {
-			const panels = this._inner.get_children().map(children => children.panel_name);
-			for (const panel_name of this._panel_layout.slice(0, index).reverse()) {
-				const children_index = panels.indexOf(panel_name);
-				if (children_index > -1) {
-					this._inner.insert_child_at_index(panel, children_index + 1);
-					return;
-				}
-			}
-			this._inner.insert_child_at_index(panel, 0);
-		} else {
-			this._inner.add_child(panel);
-		}
-	}
-});
-
 export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Widget)) {
 	constructor(panel_name, nColumns = 2) {
 		super(`${current_extension_uuid()}/${panel_name}`, {
@@ -564,7 +275,7 @@ export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Wid
 
 		// The grid holding every element
 		this._grid = new St.Widget({
-			style_class: LibPanel.get_instance()._panel_grid._panel_style_class + ' quick-settings quick-settings-grid',
+			style_class: 'popup-menu-content quick-settings quick-settings-grid',
 			layout_manager: new QuickSettingsLayout(placeholder, { nColumns }),
 		});
 		// Force the grid to take up all the available width. I'm using a constraint because x_expand don't work
@@ -669,7 +380,7 @@ export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Wid
 		this._grid.layout_manager.child_set_property(this._grid, item, 'column-span', colSpan);
 	}
 
-	_close() {
+	close() {
 		this._activeMenu?.close(PopupAnimation.NONE);
 	}
 
@@ -738,8 +449,7 @@ export class LibPanel {
 	static _GridItem = GridItem;
 
 	static _DropZone = DropZone;
-	static _PanelGrid = PanelGrid;
-	static _PanelColumn = PanelColumn;
+	static _PanelGrid = PanelGridMenu;
 
 	static get_instance() {
 		return Main.panel._libpanel;
@@ -832,14 +542,13 @@ export class LibPanel {
 			this._panel_grid._set_is_single_column(this._settings.get_boolean('single-column'));
 		});
 
-		this._panel_grid = new PanelGrid(QuickSettings, this._settings.get_string('alignment'), this._settings.get_boolean('single-column'));
-		for (const column of this._settings.get_value("layout").recursiveUnpack().reverse()) {
-			this._panel_grid._add_column(column);
-		}
+		const new_menu = new Panel('', 2);
+		this._panel_grid = new PanelGridMenu(QuickSettings.menu.sourceActor, QuickSettings.menu._arrowAlignment, QuickSettings.menu._arrowSide, new_menu);
+		this._panel_grid.setArrowOrigin(QuickSettings.menu._boxPointer._arrowOrigin);
+		this._panel_grid.setSourceAlignment(QuickSettings.menu._boxPointer._sourceAlignment);
 
 		this._old_menu = this._replace_menu(this._panel_grid);
 
-		const new_menu = new Panel('', 2);
 		// we do that to prevent the name being this: `quick-settings-audio-panel@rayzeq.github.io/gnome@main`
 		new_menu.panel_name = 'gnome@main';
 		this._move_quick_settings(this._old_menu, new_menu);
