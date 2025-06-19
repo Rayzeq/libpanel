@@ -4,6 +4,7 @@ import GObject from "gi://GObject";
 import St from "gi://St";
 
 import FullscreenBoxpointer from "./boxpointer.js";
+import { Semitransparent } from "./mixins.js";
 import { registerClass } from "./utils.js";
 
 const GRID_SPACING = 5;
@@ -319,7 +320,7 @@ const PanelGridLayout = registerClass({
 });
 type PanelGridLayout = InstanceType<typeof PanelGridLayout>;
 
-const PanelGrid = registerClass(class PanelGrid extends St.Widget {
+const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widget) {
 	public boxpointer: FullscreenBoxpointer;
 	public default_panel: Clutter.Actor;
 
@@ -330,5 +331,5 @@ const PanelGrid = registerClass(class PanelGrid extends St.Widget {
 		this.default_panel = default_panel;
 	}
 });
+type PanelGrid = InstanceType<typeof PanelGrid>;
 export default PanelGrid;
-export type PanelGrid = InstanceType<typeof PanelGrid>;
