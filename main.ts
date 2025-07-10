@@ -503,12 +503,12 @@ export class LibPanel {
 		if (!instance)
 			console.error(`[LibPanel] ${current_extension_uuid()} tried to add a panel, but the library is disabled.`);
 
-		if (instance._settings.get_boolean('padding-enabled'))
-			set_style_value(panel._grid, 'padding', `${instance._settings.get_int('padding')}px`);
-		if (instance._settings.get_boolean('row-spacing-enabled'))
-			set_style_value(panel._grid, 'spacing-rows', `${instance._settings.get_int('row-spacing')}px`);
-		if (instance._settings.get_boolean('column-spacing-enabled'))
-			set_style_value(panel._grid, 'spacing-columns', `${instance._settings.get_int('column-spacing')}px`);
+		if (instance._settings.get_boolean("padding-enabled"))
+			set_style_value(panel._grid, "padding", `${instance._settings.get_int("padding")}px`);
+		if (instance._settings.get_boolean("row-spacing-enabled"))
+			set_style_value(panel._grid, "spacing-rows", `${instance._settings.get_int("row-spacing")}px`);
+		if (instance._settings.get_boolean("column-spacing-enabled"))
+			set_style_value(panel._grid, "spacing-columns", `${instance._settings.get_int("column-spacing")}px`);
 		instance._panel_grid._add_panel(panel);
 		instance._save_layout();
 	}
