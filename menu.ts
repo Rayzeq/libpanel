@@ -54,7 +54,8 @@ export default class PanelGridMenu extends PopupMenu {
 	}
 
 	get panels(): Panel[] {
-		return this.box.get_children();
+		// just assume that we have only valid panels
+		return <Panel[]>this.box.get_children();
 	}
 
 	close(animate: boolean) {
