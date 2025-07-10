@@ -511,7 +511,6 @@ export class LibPanel {
 		if (instance._settings.get_boolean("column-spacing-enabled"))
 			set_style_value(panel._grid, "spacing-columns", `${instance._settings.get_int("column-spacing")}px`);
 		instance._panel_grid.add_panel(panel);
-		instance._save_layout();
 	}
 
 	static removePanel(panel) {
@@ -536,13 +535,6 @@ export class LibPanel {
 
 	_late_init() {
 		// =================== Replacing the popup ==================
-		this._settings.connect("changed::alignment", () => {
-			this._panel_grid._set_alignment(this._settings.get_string("alignment"));
-		});
-		this._settings.connect("changed::single-column", () => {
-			this._panel_grid._set_is_single_column(this._settings.get_boolean("single-column"));
-		});
-
 		const new_menu = new Panel("", 2);
 		this._panel_grid = new PanelGridMenu(QuickSettings.menu.sourceActor, QuickSettings.menu._arrowAlignment, QuickSettings.menu._arrowSide, new_menu, this._settings);
 		this._panel_grid.setArrowOrigin(QuickSettings.menu._boxPointer._arrowOrigin);
@@ -658,19 +650,5 @@ export class LibPanel {
 			new_menu.addItem(item, column_span);
 			item.visible = visible; // force reset of visibility
 		}
-	}
-
-	_save_layout() {
-		const layout = this._panel_grid._get_panel_layout();
-
-		// Remove leading empty columns
-		while (layout[0]?.length === 0) layout.shift();
-		this._settings.set_value(
-			"layout",
-			GLib.Variant.new_array(
-				GLib.VariantType.new("as"),
-				layout.map(column => GLib.Variant.new_strv(column))
-			)
-		);
 	}
 };

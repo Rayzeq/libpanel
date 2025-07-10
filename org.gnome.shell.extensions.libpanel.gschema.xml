@@ -2,12 +2,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <schema id="org.gnome.shell.extensions.libpanel" path="/org/gnome/shell/extensions/libpanel/">
-    <key name="single-column" type="b">
-      <default>false</default>
-    </key>
-    <key name="alignment" type="s">
-      <default>"right"</default>
-    </key>
     <key name="layout" type="a{s(ii)}">
       <default>{}</default>
     </key>
