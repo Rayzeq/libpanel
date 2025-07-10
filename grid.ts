@@ -6,7 +6,7 @@ import St from "gi://St";
 
 import FullscreenBoxpointer from "./boxpointer.js";
 import { Semitransparent } from "./mixins.js";
-import { Panel } from "./panel.js";
+import { PanelInterface } from "./panel.js";
 import { registerClass } from "./utils.js";
 
 const GRID_SPACING = 5;
@@ -336,7 +336,7 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 		this.default_panel = default_panel;
 		this.settings = settings;
 
-		this.connect("child-added", (_, child: Panel) => {
+		this.connect("child-added", (_, child: PanelInterface) => {
 			const layout: Map<string, [number, number]> = new Map(Object.entries(this.settings.get_value("layout").recursiveUnpack()));
 
 			const position = layout.get(child.panel_id);
@@ -357,11 +357,11 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 		});
 	}
 
-	set_column(actor: Clutter.Actor, column: number) {
+	private set_column(actor: Clutter.Actor, column: number) {
 		this.layout_manager.child_set_property(this, actor, "column", column);
 	}
 
-	set_row(actor: Clutter.Actor, row: number) {
+	private set_row(actor: Clutter.Actor, row: number) {
 		this.layout_manager.child_set_property(this, actor, "row", row);
 	}
 });

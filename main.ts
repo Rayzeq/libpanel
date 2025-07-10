@@ -5,7 +5,6 @@
 import Clutter from "gi://Clutter";
 import Cogl from "gi://Cogl";
 import type Gio from "gi://Gio";
-import GLib from "gi://GLib";
 import GObject from "gi://GObject";
 import St from "gi://St";
 

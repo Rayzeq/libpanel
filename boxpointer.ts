@@ -134,7 +134,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 	}
 
 	// Methods from the original BoxPointer
-	vfunc_captured_event(event: Clutter.Event) {
+	public override vfunc_captured_event(event: Clutter.Event) {
 		if (event.type() === Clutter.EventType.ENTER ||
 			event.type() === Clutter.EventType.LEAVE)
 			return Clutter.EVENT_PROPAGATE;
@@ -278,7 +278,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 	}
 
 	// Based on _calculateArrowSide
-	_update_arrow_side(source_extents: Graphene.Rect, workarea: Mtk.Rectangle) {
+	private _update_arrow_side(source_extents: Graphene.Rect, workarea: Mtk.Rectangle) {
 		const source_top_left = source_extents.get_top_left();
 		const source_bottom_right = source_extents.get_bottom_right();
 		const source_horizontal_center = (source_top_left.x + source_bottom_right.x) / 2;

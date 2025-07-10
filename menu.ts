@@ -6,7 +6,7 @@ import { PopupMenu } from "resource:///org/gnome/shell/ui/popupMenu.js";
 
 import FullscreenBoxpointer from "./boxpointer.js";
 import PanelGrid from "./grid.js";
-import { Panel } from "./panel.js";
+import { PanelInterface } from "./panel.js";
 
 // The spacing between panels in the grid, in pixels.
 const GRID_SPACING = 5;
@@ -45,27 +45,27 @@ export default class PanelGridMenu extends PopupMenu {
 		this.actor.reactive = true;
 	}
 
-	get transparent() {
+	public get transparent() {
 		return this._boxPointer.transparent && this.box.transparent;
 	}
 
-	set transparent(value) {
+	public set transparent(value) {
 		this._boxPointer.transparent = value;
 	}
 
-	get panels(): Panel[] {
+	public get panels(): PanelInterface[] {
 		// just assume that we have only valid panels
-		return <Panel[]>this.box.get_children();
+		return this.box.get_children() as PanelInterface[];
 	}
 
-	close(animate: boolean) {
+	public close(animate: boolean) {
 		for (const panel of this.panels) {
 			panel.close?.(animate);
 		}
 		super.close(animate);
 	}
 
-	add_panel(panel: Panel) {
+	public add_panel(panel: PanelInterface) {
 		this.box.add_child(panel);
 	}
 }
