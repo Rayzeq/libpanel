@@ -102,6 +102,7 @@ const PanelGridLayout = registerClass({
 		groups.set(0, { pref: 1, min: 1, widgets: [] });
 
 		for (const child of container.get_children()) {
+			if (!child.visible) continue;
 			const { column: index } = this._get_child_properties(container, child);
 
 			if (!groups.has(index))
