@@ -8,8 +8,8 @@
     <key name="alignment" type="s">
       <default>"right"</default>
     </key>
-    <key name="layout" type="aas">
-      <default>[]</default>
+    <key name="layout" type="a{s(ii)}">
+      <default>{}</default>
     </key>
     <key name="padding-enabled" type="b">
       <default>false</default>

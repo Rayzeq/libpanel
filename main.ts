@@ -108,6 +108,7 @@ const GridItem = superclass => {
 
 			this.is_grid_item = true;
 			this.panel_name = panel_name;
+			this.panel_id = this.panel_name;
 
 			this._drag_handle = DND.makeDraggable(this, {});
 			this.connect_named(this._drag_handle, "drag-begin", () => {
@@ -509,7 +510,7 @@ export class LibPanel {
 			set_style_value(panel._grid, "spacing-rows", `${instance._settings.get_int("row-spacing")}px`);
 		if (instance._settings.get_boolean("column-spacing-enabled"))
 			set_style_value(panel._grid, "spacing-columns", `${instance._settings.get_int("column-spacing")}px`);
-		instance._panel_grid._add_panel(panel);
+		instance._panel_grid.add_panel(panel);
 		instance._save_layout();
 	}
 
@@ -543,7 +544,7 @@ export class LibPanel {
 		});
 
 		const new_menu = new Panel("", 2);
-		this._panel_grid = new PanelGridMenu(QuickSettings.menu.sourceActor, QuickSettings.menu._arrowAlignment, QuickSettings.menu._arrowSide, new_menu);
+		this._panel_grid = new PanelGridMenu(QuickSettings.menu.sourceActor, QuickSettings.menu._arrowAlignment, QuickSettings.menu._arrowSide, new_menu, this._settings);
 		this._panel_grid.setArrowOrigin(QuickSettings.menu._boxPointer._arrowOrigin);
 		this._panel_grid.setSourceAlignment(QuickSettings.menu._boxPointer._sourceAlignment);
 
@@ -551,6 +552,7 @@ export class LibPanel {
 
 		// we do that to prevent the name being this: `quick-settings-audio-panel@rayzeq.github.io/gnome@main`
 		new_menu.panel_name = "gnome@main";
+		new_menu.panel_id = "gnome@main";
 		this._move_quick_settings(this._old_menu, new_menu);
 		LibPanel.addPanel(new_menu);
 		this._main_panel = new_menu;

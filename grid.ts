@@ -1,10 +1,12 @@
 import Clutter from "gi://Clutter";
+import type Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import GObject from "gi://GObject";
 import St from "gi://St";
 
 import FullscreenBoxpointer from "./boxpointer.js";
 import { Semitransparent } from "./mixins.js";
+import { Panel } from "./panel.js";
 import { registerClass } from "./utils.js";
 
 const GRID_SPACING = 5;
@@ -324,11 +326,42 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 	public boxpointer: FullscreenBoxpointer;
 	public default_panel: Clutter.Actor;
 
-	constructor(boxpointer: FullscreenBoxpointer, default_panel: Clutter.Actor) {
+	private settings: Gio.Settings;
+
+	constructor(boxpointer: FullscreenBoxpointer, default_panel: Clutter.Actor, settings: Gio.Settings) {
 		super({ layout_manager: new PanelGridLayout(), x_expand: true, y_expand: true });
 
 		this.boxpointer = boxpointer;
 		this.default_panel = default_panel;
+		this.settings = settings;
+
+		this.connect("child-added", (_, child: Panel) => {
+			const layout: Map<string, [number, number]> = new Map(Object.entries(this.settings.get_value("layout").recursiveUnpack()));
+
+			const position = layout.get(child.panel_id);
+			if (position) {
+				this.set_column(child, position[0]);
+				this.set_row(child, position[1]);
+			} else {
+				// Default position is the bottom of the center column
+				let max_row = Math.max(...[...layout.values()].map(v => v[1]));
+				if (max_row === -Infinity)
+					max_row = -1;
+				this.set_column(child, 0);
+				this.set_row(child, max_row + 1);
+
+				layout.set(child.panel_id, [0, max_row + 1]);
+				this.settings.set_value("layout", new GLib.Variant("a{s(ii)}", Object.fromEntries(layout.entries())));
+			}
+		});
+	}
+
+	set_column(actor: Clutter.Actor, column: number) {
+		this.layout_manager.child_set_property(this, actor, "column", column);
+	}
+
+	set_row(actor: Clutter.Actor, row: number) {
+		this.layout_manager.child_set_property(this, actor, "row", row);
 	}
 });
 type PanelGrid = InstanceType<typeof PanelGrid>;
