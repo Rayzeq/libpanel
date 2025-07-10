@@ -33,6 +33,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 
 	constructor(arrowSide: St.Side, binProperties?: Partial<St.Bin.ConstructorProps>) {
 		super();
+		this.style = "box-shadow: none;";
 
 		this.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
 

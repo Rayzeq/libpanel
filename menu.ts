@@ -42,8 +42,6 @@ export default class PanelGridMenu extends PopupMenu {
 
 		global.focus_manager.add_group(this.actor);
 		this.actor.reactive = true;
-
-		this.actor.add_style_class_name('QSAP-panel-grid');
 	}
 
 	get transparent() {
