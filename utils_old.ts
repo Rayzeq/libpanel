@@ -1,6 +1,6 @@
-import GObject from 'gi://GObject';
+import GObject from "gi://GObject";
 
-import type { InjectionManager } from 'resource:///org/gnome/shell/extensions/extension.js';
+import type { InjectionManager } from "resource:///org/gnome/shell/extensions/extension.js";
 
 export type Constructor<T> = new (...args: any[]) => T;
 
@@ -15,7 +15,7 @@ export function add_named_connections<T extends Constructor<U>, U>(injector: Inj
 		if (object._lp_connections === undefined) {
 			object._lp_connections = new Map();
 			if (object instanceof GObject.Object) {
-				object.connect('destroy', () => {
+				object.connect("destroy", () => {
 					/*console.log(`${object}: removing connections`,
 						JSON.stringify(object._lp_connections, function simplify(key, value) {
 							if (value instanceof Map)
@@ -37,7 +37,7 @@ export function add_named_connections<T extends Constructor<U>, U>(injector: Inj
 		// Add the signal map
 		if (!source_map.has(source)) {
 			source_map.set(source, new Map());
-			source.connect('destroy', () => {
+			source.connect("destroy", () => {
 				//console.log(`REMOVING ${_get_address(source)} FROM ${_get_address(object)}`);
 				source_map.delete(source);
 			});
@@ -63,7 +63,7 @@ export function add_named_connections<T extends Constructor<U>, U>(injector: Inj
 		return set_signal(this, source, signal, callback, source.connect_after(signal, callback));
 	});
 	injector.overrideMethod(object.prototype, "disconnect_named", _wrapped => function (source = undefined, signal = undefined, callback = undefined) {
-		if (typeof source === 'number') {
+		if (typeof source === "number") {
 			// The function was called with an id.
 			const id_to_remove = source - 100000;
 

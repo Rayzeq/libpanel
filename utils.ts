@@ -131,8 +131,8 @@ export function set_style_value(widget: St.Widget, name: string, value: string |
 }
 
 export function get_settings(path: string): Gio.Settings {
-	const [parent_path, file] = rsplit(path, '/', 1);
-	const id = rsplit(file, '.', 2)[0];
+	const [parent_path, file] = rsplit(path, "/", 1);
+	const id = rsplit(file, ".", 2)[0];
 	const source = Gio.SettingsSchemaSource.new_from_directory(
 		parent_path,
 		Gio.SettingsSchemaSource.get_default(),

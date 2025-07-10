@@ -60,7 +60,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 		};
 		this.center = 0;
 
-		this.connect('notify::visible', () => {
+		this.connect("notify::visible", () => {
 			if (this.visible)
 				global.compositor.disable_unredirect();
 			else
@@ -85,8 +85,8 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 		this._update_arrow_side(source_extents, workarea);
 
 		const theme_node = this.get_theme_node();
-		const gap = theme_node.get_length('-boxpointer-gap');
-		const padding = theme_node.get_length('-arrow-rise');
+		const gap = theme_node.get_length("-boxpointer-gap");
+		const padding = theme_node.get_length("-arrow-rise");
 		const base_space = gap + padding;
 
 		let space;
@@ -173,7 +173,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 			this._sourceActor = sourceActor;
 
 			// @ts-expect-error: `connectObject` is added on `GObject.Object` by gnome shell (see environment.js)
-			this._sourceActor?.connectObject('destroy', () => (this._sourceActor = null), this);
+			this._sourceActor?.connectObject("destroy", () => (this._sourceActor = null), this);
 		}
 
 		this._arrowAlignment = Math.clamp(alignment, 0.0, 1.0);
@@ -183,7 +183,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 
 	public open(animate: PopupAnimation, onComplete: () => void) {
 		let themeNode = this.get_theme_node();
-		let rise = themeNode.get_length('-arrow-rise');
+		let rise = themeNode.get_length("-arrow-rise");
 		let animationTime = animate & PopupAnimation.FULL ? POPUP_ANIMATION_TIME : 0;
 
 		if (animate & PopupAnimation.FADE)
@@ -233,7 +233,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 		let translationX = 0;
 		let translationY = 0;
 		let themeNode = this.get_theme_node();
-		let rise = themeNode.get_length('-arrow-rise');
+		let rise = themeNode.get_length("-arrow-rise");
 		let fade = animate & PopupAnimation.FADE;
 		let animationTime = animate & PopupAnimation.FULL ? POPUP_ANIMATION_TIME : 0;
 
