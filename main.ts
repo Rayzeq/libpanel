@@ -535,7 +535,7 @@ export class LibPanel {
 	_late_init() {
 		// =================== Replacing the popup ==================
 		const new_menu = new Panel("", 2);
-		this._panel_grid = new PanelGridMenu(QuickSettings.menu.sourceActor, QuickSettings.menu._arrowAlignment, QuickSettings.menu._arrowSide, new_menu, this._settings);
+		this._panel_grid = new PanelGridMenu(QuickSettings.menu.sourceActor, QuickSettings.menu._arrowAlignment, QuickSettings.menu._arrowSide, "libpanel@main", new_menu, this._settings);
 		this._panel_grid.setArrowOrigin(QuickSettings.menu._boxPointer._arrowOrigin);
 		this._panel_grid.setSourceAlignment(QuickSettings.menu._boxPointer._sourceAlignment);
 

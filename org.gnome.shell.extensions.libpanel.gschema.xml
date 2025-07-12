@@ -2,7 +2,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <schema id="org.gnome.shell.extensions.libpanel" path="/org/gnome/shell/extensions/libpanel/">
-    <key name="layout" type="a{s(ii)}">
+    <!--
+      The outermost dictionnary is mapping of monitor name (as defined by Dash To Panel) to grid layout. The innermost one is mapping of panel id to position in the gris.
+    --> 
+    <key name="layout" type="a{sa{s(ii)}}">
       <default>{}</default>
     </key>
     <key name="padding-enabled" type="b">

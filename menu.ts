@@ -17,13 +17,13 @@ export default class PanelGridMenu extends PopupMenu {
 	// @ts-expect-error: replacing some gnome types
 	public box: PanelGrid;
 
-	constructor(source: St.Widget, arrow_alignment: number, arrow_side: St.Side, default_panel: Clutter.Actor, settings: Gio.Settings) {
+	constructor(source: St.Widget, arrow_alignment: number, arrow_side: St.Side, monitor_id: string, default_panel: Clutter.Actor, settings: Gio.Settings) {
 		super(source, arrow_alignment, arrow_side);
 
 		const new_boxpointer = new FullscreenBoxpointer(arrow_side);
 
 		// Replace the box
-		this.box = new PanelGrid(new_boxpointer, default_panel, settings);
+		this.box = new PanelGrid(new_boxpointer, monitor_id, default_panel, settings);
 		this.box.style = `spacing-rows: ${GRID_SPACING}px; spacing-columns: ${GRID_SPACING}px`;
 
 		// Delete some things

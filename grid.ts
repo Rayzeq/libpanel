@@ -328,31 +328,38 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 	public default_panel: Clutter.Actor;
 
 	private settings: Gio.Settings;
+	private monitor_id: string;
 
-	constructor(boxpointer: FullscreenBoxpointer, default_panel: Clutter.Actor, settings: Gio.Settings) {
+	constructor(boxpointer: FullscreenBoxpointer, monitor_id: string, default_panel: Clutter.Actor, settings: Gio.Settings) {
 		super({ layout_manager: new PanelGridLayout(), x_expand: true, y_expand: true });
 
 		this.boxpointer = boxpointer;
+		this.monitor_id = monitor_id;
 		this.default_panel = default_panel;
 		this.settings = settings;
 
 		this.connect("child-added", (_, child: PanelInterface) => {
-			const layout: Map<string, [number, number]> = new Map(Object.entries(this.settings.get_value("layout").recursiveUnpack()));
+			const layout = this.get_layout();
+			let monitor_layout = layout.get(this.monitor_id);
+			if (!monitor_layout) {
+				monitor_layout = new Map();
+				layout.set(this.monitor_id, monitor_layout);
+			}
 
-			const position = layout.get(child.panel_id);
+			const position = monitor_layout.get(child.panel_id);
 			if (position) {
 				this.set_column(child, position[0]);
 				this.set_row(child, position[1]);
 			} else {
 				// Default position is the bottom of the center column
-				let max_row = Math.max(...[...layout.values()].map(v => v[1]));
+				let max_row = Math.max(...[...monitor_layout.values()].map(v => v[1]));
 				if (max_row === -Infinity)
 					max_row = -1;
 				this.set_column(child, 0);
 				this.set_row(child, max_row + 1);
 
-				layout.set(child.panel_id, [0, max_row + 1]);
-				this.settings.set_value("layout", new GLib.Variant("a{s(ii)}", Object.fromEntries(layout.entries())));
+				monitor_layout.set(child.panel_id, [0, max_row + 1]);
+				this.save_layout(layout);
 			}
 		});
 	}
@@ -363,6 +370,21 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 
 	private set_row(actor: Clutter.Actor, row: number) {
 		this.layout_manager.child_set_property(this, actor, "row", row);
+	}
+
+	private get_layout(): Map<string, Map<string, [number, number]>> {
+		const layout: { [index: string]: { [index: string]: [number, number] } } = this.settings.get_value("layout").recursiveUnpack();
+		return new Map(
+			Object.entries(layout)
+				.map(([monitor_id, layout]) => [monitor_id, new Map(Object.entries(layout))])
+		);
+	}
+
+	private save_layout(layout: Map<string, Map<string, [number, number]>>) {
+		const transformed_layout = Object.fromEntries(
+			[...layout.entries()].map(([k, v]) => [k, Object.fromEntries(v)])
+		);
+		this.settings.set_value("layout", new GLib.Variant("a{sa{s(ii)}}", transformed_layout));
 	}
 });
 type PanelGrid = InstanceType<typeof PanelGrid>;
