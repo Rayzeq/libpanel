@@ -70,11 +70,11 @@ const PanelGridLayout = registerClass({
 			this.layout_changed();
 	}
 
-	public vfunc_get_child_meta_type(): GObject.GType<Clutter.LayoutMeta> {
+	public override vfunc_get_child_meta_type(): GObject.GType<Clutter.LayoutMeta> {
 		return PanelGridLayoutMeta.$gtype;
 	}
 
-	public vfunc_set_container(container: Clutter.Actor): void {
+	public override vfunc_set_container(container: Clutter.Actor): void {
 		// @ts-expect-error: `disconnectObject` is added on `GObject.Object` by gnome shell (see environment.js)
 		this._container?.disconnectObject(this);
 
@@ -84,15 +84,15 @@ const PanelGridLayout = registerClass({
 		this._container?.connectObject("style-changed", () => this._container_style_changed(), this);
 	}
 
-	public vfunc_get_preferred_width(_container: Clutter.Actor, _forHeight: number): [number, number] {
+	public override vfunc_get_preferred_width(_container: Clutter.Actor, _forHeight: number): [number, number] {
 		return [-1, -1];
 	}
 
-	public vfunc_get_preferred_height(_container: Clutter.Actor, _forWidth: number): [number, number] {
+	public override vfunc_get_preferred_height(_container: Clutter.Actor, _forWidth: number): [number, number] {
 		return [-1, -1];
 	}
 
-	public vfunc_allocate(container_: Clutter.Actor, box: Clutter.ActorBox): void {
+	public override vfunc_allocate(container_: Clutter.Actor, box: Clutter.ActorBox): void {
 		// We assume that the container is always a PanelGrid
 		const container = container_ as PanelGrid;
 		const arrow_side = container.boxpointer._arrowSide;

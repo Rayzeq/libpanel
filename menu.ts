@@ -58,7 +58,7 @@ export default class PanelGridMenu extends PopupMenu {
 		return this.box.get_children() as PanelInterface[];
 	}
 
-	public close(animate: boolean) {
+	public override close(animate: boolean) {
 		for (const panel of this.panels) {
 			panel.close?.(animate);
 		}

@@ -20,7 +20,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 	public bin: St.Bin;
 
 	private _sourceAlignment: number;
-	private _sourceActor?: Clutter.Actor | null;
+	private _sourceActor?: Clutter.Actor | undefined;
 
 	/** @internal */
 	public _arrowSide: St.Side;
@@ -174,7 +174,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 			this._sourceActor = sourceActor;
 
 			// @ts-expect-error: `connectObject` is added on `GObject.Object` by gnome shell (see environment.js)
-			this._sourceActor?.connectObject("destroy", () => (this._sourceActor = null), this);
+			this._sourceActor?.connectObject("destroy", () => (this._sourceActor = undefined), this);
 		}
 
 		this._arrowAlignment = Math.clamp(alignment, 0.0, 1.0);

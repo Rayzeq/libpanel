@@ -120,7 +120,7 @@ function get_style(widget: St.Widget): { name: string, value: string }[] {
 }
 
 export function set_style_value(widget: St.Widget, name: string, value: string | number | null) {
-	let style = <{ name: string, value: string | number }[]>get_style(widget).filter(x => x.name !== name);
+	let style: { name: string, value: string | number }[] = get_style(widget).filter(x => x.name !== name);
 
 	if (value !== null)
 		style.push({ name, value });
