@@ -75,20 +75,20 @@ const PanelGridLayout = registerClass({
 	}
 
 	public override vfunc_set_container(container: Clutter.Actor): void {
-		// @ts-expect-error: `disconnectObject` is added on `GObject.Object` by gnome shell (see environment.js)
-		this._container?.disconnectObject(this);
+		// @ts-expect-error: `disconnect_object` is added on `GObject.Object` by gnome shell (see environment.js)
+		this._container?.disconnect_object(this);
 
 		this._container = container;
 
-		// @ts-expect-error: `connectObject` is added on `GObject.Object` by gnome shell (see environment.js)
-		this._container?.connectObject("style-changed", () => this._container_style_changed(), this);
+		// @ts-expect-error: `connect_object` is added on `GObject.Object` by gnome shell (see environment.js)
+		this._container?.connect_object("style-changed", () => this._container_style_changed(), this);
 	}
 
-	public override vfunc_get_preferred_width(_container: Clutter.Actor, _forHeight: number): [number, number] {
+	public override vfunc_get_preferred_width(_container: Clutter.Actor, _for_height: number): [number, number] {
 		return [-1, -1];
 	}
 
-	public override vfunc_get_preferred_height(_container: Clutter.Actor, _forWidth: number): [number, number] {
+	public override vfunc_get_preferred_height(_container: Clutter.Actor, _for_width: number): [number, number] {
 		return [-1, -1];
 	}
 

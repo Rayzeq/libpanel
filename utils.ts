@@ -30,27 +30,27 @@ export function registerClass<
 			[key: string]: any;
 		};
 	},
->(optionsOrKlass: any, cls?: T): T {
-	let actualOptions: MetaInfo<Props, Interfaces, Sigs>;
-	let actualCls: T;
+>(options_or_class: any, cls?: T): T {
+	let actual_options: MetaInfo<Props, Interfaces, Sigs>;
+	let actual_cls: T;
 
 	if (cls === undefined) {
-		actualCls = optionsOrKlass;
-		actualOptions = {};
+		actual_cls = options_or_class;
+		actual_options = {};
 	} else {
-		actualOptions = optionsOrKlass;
-		actualCls = cls;
+		actual_options = options_or_class;
+		actual_cls = cls;
 	}
 
-	const defaultName = `LibPanel_${actualCls.name}`;
+	const default_name = `LibPanel_${actual_cls.name}`;
 	const uuid = current_extension_uuid()?.replace(/[^A-Za-z_-]/g, "-");
 	if (uuid === undefined) {
 		console.error("Libpanel's registerClass not called from within extension code. Not mangling name");
 	} else {
-		actualOptions.GTypeName = `${actualOptions.GTypeName || defaultName}_${uuid}`;
+		actual_options.GTypeName = `${actual_options.GTypeName || default_name}_${uuid}`;
 	}
 
-	return GObject.registerClass(actualOptions, actualCls);
+	return GObject.registerClass(actual_options, actual_cls);
 }
 
 /** Python-like split */

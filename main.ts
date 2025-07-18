@@ -627,14 +627,14 @@ export class LibPanel {
 		const old_menu = QuickSettings.menu;
 
 		MenuManager.removeMenu(old_menu);
-		Main.layoutManager.disconnectObject(old_menu);
+		Main.layoutManager.disconnect_object(old_menu);
 
 		QuickSettings.menu = null; // prevent old_menu from being destroyed
 		QuickSettings.setMenu(new_menu);
 		old_menu.actor.get_parent().remove_child(old_menu.actor);
 
 		MenuManager.addMenu(new_menu);
-		Main.layoutManager.connectObject("system-modal-opened", () => new_menu.close(), new_menu);
+		Main.layoutManager.connect_object("system-modal-opened", () => new_menu.close(), new_menu);
 
 		return old_menu;
 	}

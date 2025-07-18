@@ -31,25 +31,25 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 	private _muteKeys: boolean;
 	private _muteInput: boolean;
 
-	constructor(arrowSide: St.Side, binProperties?: Partial<St.Bin.ConstructorProps>) {
+	constructor(arrow_side: St.Side, bin_properties?: Partial<St.Bin.ConstructorProps>) {
 		super();
 		this.style = "box-shadow: none;";
 
 		this.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
 
-		this._arrowSide = arrowSide;
-		this._userArrowSide = arrowSide;
+		this._arrowSide = arrow_side;
+		this._userArrowSide = arrow_side;
 		this._arrowOrigin = 0;
 		this._sourceAlignment = 0.5;
 		this._arrowAlignment = 0.5;
 		this._muteKeys = true;
 		this._muteInput = true;
 
-		this.bin = new St.Bin(binProperties);
+		this.bin = new St.Bin(bin_properties);
 		this.add_child(this.bin);
 
 		// We don't really care about the default value, as long as it's coherent with this._arrowSide
-		switch (arrowSide) {
+		switch (arrow_side) {
 			case St.Side.TOP:
 			case St.Side.BOTTOM:
 				this.secondary_side = St.Side.LEFT;
@@ -111,7 +111,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 		box.y2 -= space;
 	}
 
-	public override vfunc_get_preferred_width(_forHeight: number): [number, number] {
+	public override vfunc_get_preferred_width(_for_height: number): [number, number] {
 		const box = new Clutter.ActorBox();
 		this._compute_allocation(box);
 
@@ -119,7 +119,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 		return [width, width];
 	}
 
-	public override vfunc_get_preferred_height(_forWidth: number): [number, number] {
+	public override vfunc_get_preferred_height(_for_width: number): [number, number] {
 		const box = new Clutter.ActorBox();
 		this._compute_allocation(box);
 
@@ -166,15 +166,15 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 		this.setPosition(this._sourceActor, this._arrowAlignment);
 	}
 
-	public setPosition(sourceActor: Clutter.Actor | undefined, alignment: number) {
-		if (!this._sourceActor || sourceActor !== this._sourceActor) {
-			// @ts-expect-error: `disconnectObject` is added on `GObject.Object` by gnome shell (see environment.js)
-			this._sourceActor?.disconnectObject(this);
+	public setPosition(source_actor: Clutter.Actor | undefined, alignment: number) {
+		if (!this._sourceActor || source_actor !== this._sourceActor) {
+			// @ts-expect-error: `disconnect_object` is added on `GObject.Object` by gnome shell (see environment.js)
+			this._sourceActor?.disconnect_object(this);
 
-			this._sourceActor = sourceActor;
+			this._sourceActor = source_actor;
 
-			// @ts-expect-error: `connectObject` is added on `GObject.Object` by gnome shell (see environment.js)
-			this._sourceActor?.connectObject("destroy", () => (this._sourceActor = undefined), this);
+			// @ts-expect-error: `connect_object` is added on `GObject.Object` by gnome shell (see environment.js)
+			this._sourceActor?.connect_object("destroy", () => (this._sourceActor = undefined), this);
 		}
 
 		this._arrowAlignment = Math.clamp(alignment, 0.0, 1.0);
@@ -182,7 +182,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 		this.queue_relayout();
 	}
 
-	public open(animate: PopupAnimation, onComplete: () => void) {
+	public open(animate: PopupAnimation, on_complete: () => void) {
 		let themeNode = this.get_theme_node();
 		let rise = themeNode.get_length("-arrow-rise");
 		let animationTime = animate & PopupAnimation.FULL ? POPUP_ANIMATION_TIME : 0;
@@ -221,36 +221,36 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 			mode: Clutter.AnimationMode.LINEAR,
 			onComplete: () => {
 				this._muteInput = false;
-				if (onComplete)
-					onComplete();
+				if (on_complete)
+					on_complete();
 			},
 		});
 	}
 
-	public close(animate: PopupAnimation, onComplete: () => void) {
+	public close(animate: PopupAnimation, on_complete: () => void) {
 		if (!this.visible)
 			return;
 
-		let translationX = 0;
-		let translationY = 0;
-		let themeNode = this.get_theme_node();
-		let rise = themeNode.get_length("-arrow-rise");
+		let translation_x = 0;
+		let translation_y = 0;
+		let theme_node = this.get_theme_node();
+		let rise = theme_node.get_length("-arrow-rise");
 		let fade = animate & PopupAnimation.FADE;
-		let animationTime = animate & PopupAnimation.FULL ? POPUP_ANIMATION_TIME : 0;
+		let animation_time = animate & PopupAnimation.FULL ? POPUP_ANIMATION_TIME : 0;
 
 		if (animate & PopupAnimation.SLIDE) {
 			switch (this._arrowSide) {
 				case St.Side.TOP:
-					translationY = rise;
+					translation_y = rise;
 					break;
 				case St.Side.BOTTOM:
-					translationY = -rise;
+					translation_y = -rise;
 					break;
 				case St.Side.LEFT:
-					translationX = rise;
+					translation_x = rise;
 					break;
 				case St.Side.RIGHT:
-					translationX = -rise;
+					translation_x = -rise;
 					break;
 			}
 		}
@@ -262,17 +262,17 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 		// @ts-expect-error: see https://github.com/gjsify/gnome-shell/issues/65
 		this.ease({
 			opacity: fade ? 0 : 255,
-			translation_x: translationX,
-			translation_y: translationY,
-			duration: animationTime,
+			translation_x,
+			translation_y,
+			duration: animation_time,
 			mode: Clutter.AnimationMode.LINEAR,
 			onComplete: () => {
 				this.hide();
 				this.opacity = 0;
 				this.translation_x = 0;
 				this.translation_y = 0;
-				if (onComplete)
-					onComplete();
+				if (on_complete)
+					on_complete();
 			},
 		});
 	}
