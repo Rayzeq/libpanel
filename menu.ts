@@ -4,6 +4,7 @@ import St from "gi://St";
 
 import { PopupMenu } from "resource:///org/gnome/shell/ui/popupMenu.js";
 
+import { type PopupAnimation } from "resource:///org/gnome/shell/ui/boxpointer.js";
 import FullscreenBoxpointer from "./boxpointer.js";
 import PanelGrid from "./grid.js";
 import { PanelInterface } from "./panel.js";
@@ -12,10 +13,12 @@ import { PanelInterface } from "./panel.js";
 const GRID_SPACING = 5;
 
 export default class PanelGridMenu extends PopupMenu {
-	// Should be in `PopupMenu` (and should be of type `BoxPointer`)
-	declare private _boxPointer: FullscreenBoxpointer;
 	// @ts-expect-error: replacing some gnome types
-	public box: PanelGrid;
+	private declare override _boxPointer: FullscreenBoxpointer;
+	// @ts-expect-error: replacing some gnome types
+	public declare override actor: FullscreenBoxpointer;
+	// @ts-expect-error: replacing some gnome types
+	public override box: PanelGrid;
 
 	constructor(source: St.Widget, arrow_alignment: number, arrow_side: St.Side, monitor_id: string, default_panel: Clutter.Actor, settings: Gio.Settings) {
 		super(source, arrow_alignment, arrow_side);
@@ -32,7 +35,6 @@ export default class PanelGridMenu extends PopupMenu {
 
 		// Code from PopupMenu's constructor
 		this._boxPointer = new_boxpointer;
-		// @ts-expect-error: for some reason `this.actor` is read-only
 		this.actor = this._boxPointer;
 		// @ts-expect-error: `_delegate` is never defined anywhere
 		this.actor._delegate = this;
@@ -58,7 +60,7 @@ export default class PanelGridMenu extends PopupMenu {
 		return this.box.get_children() as PanelInterface[];
 	}
 
-	public override close(animate: boolean) {
+	public override close(animate: PopupAnimation) {
 		for (const panel of this.panels) {
 			panel.close?.(animate);
 		}

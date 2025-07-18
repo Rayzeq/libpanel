@@ -212,7 +212,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 			}
 		}
 
-		// @ts-expect-error: `ease` is added on `Clutter.Actor` by gnome shell (see environment.js)
+		// @ts-expect-error: see https://github.com/gjsify/gnome-shell/issues/65
 		this.ease({
 			opacity: 255,
 			translation_x: 0,
@@ -259,7 +259,7 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 		this._muteKeys = true;
 
 		this.remove_all_transitions();
-		// @ts-expect-error: `ease` is added on `Clutter.Actor` by gnome shell (see environment.js)
+		// @ts-expect-error: see https://github.com/gjsify/gnome-shell/issues/65
 		this.ease({
 			opacity: fade ? 0 : 255,
 			translation_x: translationX,
