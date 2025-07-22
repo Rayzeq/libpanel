@@ -10,8 +10,8 @@ type MetaInfo<Props, Interfaces, Sigs> = GObject.MetaInfo<Props, Interfaces, Sig
 /** Same as GObject.registerClass, but adds the calling extension's UUID to the class name */
 export function registerClass<
 	T extends ObjectConstructor,
-	Props extends { [key: string]: ParamSpec },
-	Interfaces extends { $gtype: GType }[],
+	Props extends { [key: string]: ParamSpec; },
+	Interfaces extends { $gtype: GType; }[],
 	Sigs extends {
 		[key: string]: {
 			param_types?: readonly GType[];
@@ -22,8 +22,8 @@ export function registerClass<
 export function registerClass<T extends ObjectConstructor>(cls: T): T;
 export function registerClass<
 	T extends ObjectConstructor,
-	Props extends { [key: string]: ParamSpec },
-	Interfaces extends { $gtype: GType }[],
+	Props extends { [key: string]: ParamSpec; },
+	Interfaces extends { $gtype: GType; }[],
 	Sigs extends {
 		[key: string]: {
 			param_types?: readonly GType[];
@@ -109,7 +109,7 @@ export function current_extension_uuid(): string | undefined {
 	return undefined;
 }
 
-function get_style(widget: St.Widget): { name: string, value: string }[] {
+function get_style(widget: St.Widget): { name: string, value: string; }[] {
 	return widget.style
 		?.split(";")
 		.map(x => {
@@ -120,7 +120,7 @@ function get_style(widget: St.Widget): { name: string, value: string }[] {
 }
 
 export function set_style_value(widget: St.Widget, name: string, value: string | number | null) {
-	let style: { name: string, value: string | number }[] = get_style(widget).filter(x => x.name !== name);
+	let style: { name: string, value: string | number; }[] = get_style(widget).filter(x => x.name !== name);
 
 	if (value !== null)
 		style.push({ name, value });
@@ -139,7 +139,7 @@ export function get_settings(path: string): Gio.Settings {
 		false
 	);
 
-	const schema = source.lookup(id, true)
+	const schema = source.lookup(id, true);
 	if (schema === null)
 		throw new Error(`Could not find settings schema: ${path}`);
 

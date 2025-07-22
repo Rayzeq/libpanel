@@ -98,7 +98,7 @@ const PanelGridLayout = registerClass({
 		const arrow_side = container.boxpointer._arrowSide;
 		
 		const is_vertical = arrow_side === St.Side.TOP || arrow_side === St.Side.BOTTOM;
-		const groups: Map<number, { pref: number, min: number, widgets: Clutter.Actor[] }> = new Map();
+		const groups: Map<number, { pref: number, min: number, widgets: Clutter.Actor[]; }> = new Map();
 		groups.set(0, { pref: 1, min: 1, widgets: [] });
 
 		for (const child of container.get_children()) {
@@ -226,7 +226,7 @@ const PanelGridLayout = registerClass({
 	 * @returns The remaining space and size of empty groups, if any.
 	 */
 	private _fit_groups(
-		groups: { min: number, pref: number, widgets: Clutter.Actor[] }[],
+		groups: { min: number, pref: number, widgets: Clutter.Actor[]; }[],
 		space: number,
 		max_empty_size: number,
 	): number {
@@ -263,7 +263,7 @@ const PanelGridLayout = registerClass({
 	}
 
 	private _allocate_group(
-		group: { min: number, pref: number, widgets: Clutter.Actor[] },
+		group: { min: number, pref: number, widgets: Clutter.Actor[]; },
 		main_pos: number,
 		box: Clutter.ActorBox,
 		container: PanelGrid,
@@ -373,7 +373,7 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 	}
 
 	private get_layout(): Map<string, Map<string, [number, number]>> {
-		const layout: { [index: string]: { [index: string]: [number, number] } } = this.settings.get_value("layout").recursiveUnpack();
+		const layout: { [index: string]: { [index: string]: [number, number]; }; } = this.settings.get_value("layout").recursiveUnpack();
 		return new Map(
 			Object.entries(layout)
 				.map(([monitor_id, layout]) => [monitor_id, new Map(Object.entries(layout))])
