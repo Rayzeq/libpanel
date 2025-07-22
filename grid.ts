@@ -75,12 +75,8 @@ const PanelGridLayout = registerClass({
 	}
 
 	public override vfunc_set_container(container: Clutter.Actor): void {
-		// @ts-expect-error: `disconnect_object` is added on `GObject.Object` by gnome shell (see environment.js)
 		this._container?.disconnect_object(this);
-
 		this._container = container;
-
-		// @ts-expect-error: `connect_object` is added on `GObject.Object` by gnome shell (see environment.js)
 		this._container?.connect_object("style-changed", () => this._container_style_changed(), this);
 	}
 

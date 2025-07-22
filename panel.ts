@@ -185,7 +185,6 @@ const BasePanel = registerClass(class BasePanel extends St.Widget implements Pan
 			alpha: 255,
 		});
 
-		// @ts-expect-error: `ease_property` is added on `Clutter.Actor` by gnome shell (see environment.js)
 		this._grid.ease_property("@effects.dim.brightness", color, {
 			mode: Clutter.AnimationMode.LINEAR,
 			duration: POPUP_ANIMATION_TIME,

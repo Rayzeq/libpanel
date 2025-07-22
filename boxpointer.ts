@@ -167,12 +167,8 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 
 	public setPosition(source_actor: Clutter.Actor | undefined, alignment: number) {
 		if (!this._sourceActor || source_actor !== this._sourceActor) {
-			// @ts-expect-error: `disconnect_object` is added on `GObject.Object` by gnome shell (see environment.js)
 			this._sourceActor?.disconnect_object(this);
-
 			this._sourceActor = source_actor;
-
-			// @ts-expect-error: `connect_object` is added on `GObject.Object` by gnome shell (see environment.js)
 			this._sourceActor?.connect_object("destroy", () => (this._sourceActor = undefined), this);
 		}
 
@@ -211,7 +207,6 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 			}
 		}
 
-		// @ts-expect-error: see https://github.com/gjsify/gnome-shell/issues/65
 		this.ease({
 			opacity: 255,
 			translation_x: 0,
@@ -258,7 +253,6 @@ export const FullscreenBoxpointer = registerClass(class FullscreenBoxpointer ext
 		this._muteKeys = true;
 
 		this.remove_all_transitions();
-		// @ts-expect-error: see https://github.com/gjsify/gnome-shell/issues/65
 		this.ease({
 			opacity: fade ? 0 : 255,
 			translation_x,
