@@ -7,13 +7,16 @@ import { PopupAnimation } from "resource:///org/gnome/shell/ui/boxpointer.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import type { QuickMenuToggle, QuickSettingsItem, QuickSettingsLayout, QuickToggleMenu } from "resource:///org/gnome/shell/ui/quickSettings.js";
 
-import { current_extension_uuid, registerClass } from "./utils.js";
+import { current_extension_uuid, registerClass, set_style_value } from "./utils.js";
 
 const QuickSettingsLayoutConstructor = Main.panel.statusArea.quickSettings.menu._grid.layout_manager.constructor as typeof QuickSettingsLayout;
 
 export interface PanelInterface extends Clutter.Actor {
 	panel_id: string,
 	close?(animate: PopupAnimation): void;
+	set_padding?(padding: number | null): void;
+	set_row_spacing?(row_spacing: number | null): void;
+	set_column_spacing?(column_spacing: number | null): void;
 }
 
 export interface QuickSettingsPanelInterface {
@@ -191,6 +194,18 @@ const BasePanel = registerClass(class BasePanel extends St.Widget implements Pan
 			onStopped: () => (this._dimEffect.enabled = dim),
 		});
 		this._dimEffect.enabled = true;
+	}
+
+	public set_padding(padding: number | null) {
+		set_style_value(this._grid, "padding", padding !== null ? `${padding}px` : null);
+	}
+
+	public set_row_spacing(row_spacing: number | null) {
+		set_style_value(this._grid, "spacing-rows", row_spacing !== null ? `${row_spacing}px` : null);
+	}
+
+	public set_column_spacing(column_spacing: number | null) {
+		set_style_value(this._grid, "spacing-columns", column_spacing !== null ? `${column_spacing}px` : null);
 	}
 });
 type BasePanel = InstanceType<typeof BasePanel>;

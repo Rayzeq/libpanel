@@ -334,6 +334,55 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 		this.default_panel = default_panel;
 		this.settings = settings;
 
+		// https://gjs-docs.gnome.org/gio20~2.0/gio.settings#signal-changed
+		// "Note that @settings only emits this signal if you have read key at
+		// least once while a signal handler was already connected for key."
+		// Those key will be read when the first panel is added
+		this.settings.connect_object("changed::padding-enabled", () => {
+			const enabled = this.settings.get_boolean("padding-enabled");
+			const value = this.settings.get_int("padding");
+			for (const child of this.get_panels()) {
+				child.set_padding?.(enabled ? value : null);
+			}
+		}, this);
+		this.settings.connect_object("changed::padding", () => {
+			if (!this.settings.get_boolean("padding-enabled")) return;
+			const value = this.settings.get_int("padding");
+			for (const child of this.get_panels()) {
+				child.set_padding?.(value);
+			}
+		}, this);
+
+		this.settings.connect_object("changed::row-spacing-enabled", () => {
+			const enabled = this.settings.get_boolean("row-spacing-enabled");
+			const value = this.settings.get_int("row-spacing");
+			for (const child of this.get_panels()) {
+				child.set_row_spacing?.(enabled ? value : null);
+			}
+		}, this);
+		this.settings.connect_object("changed::row-spacing", () => {
+			if (!this.settings.get_boolean("row-spacing-enabled")) return;
+			const value = this.settings.get_int("row-spacing");
+			for (const child of this.get_panels()) {
+				child.set_row_spacing?.(value);
+			}
+		}, this);
+
+		this.settings.connect_object("changed::column-spacing-enabled", () => {
+			const enabled = this.settings.get_boolean("column-spacing-enabled");
+			const value = this.settings.get_int("column-spacing");
+			for (const child of this.get_panels()) {
+				child.set_column_spacing?.(enabled ? value : null);
+			}
+		}, this);
+		this.settings.connect_object("changed::column-spacing", () => {
+			if (!this.settings.get_boolean("column-spacing-enabled")) return;
+			const value = this.settings.get_int("column-spacing");
+			for (const child of this.get_panels()) {
+				child.set_column_spacing?.(value);
+			}
+		}, this);
+
 		this.connect("child-added", (_, child: PanelInterface) => {
 			const layout = this.get_layout();
 			let monitor_layout = layout.get(this.monitor_id);
@@ -357,6 +406,10 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 				monitor_layout.set(child.panel_id, [0, max_row + 1]);
 				this.save_layout(layout);
 			}
+
+			child.set_padding?.(settings.get_boolean("padding-enabled") ? settings.get_int("padding") : null);
+			child.set_row_spacing?.(settings.get_boolean("row-spacing-enabled") ? settings.get_int("row-spacing") : null);
+			child.set_column_spacing?.(settings.get_boolean("column-spacing-enabled") ? settings.get_int("column-spacing") : null);
 		});
 	}
 
@@ -381,6 +434,10 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 			[...layout.entries()].map(([k, v]) => [k, Object.fromEntries(v)])
 		);
 		this.settings.set_value("layout", new GLib.Variant("a{sa{s(ii)}}", transformed_layout));
+	}
+
+	private get_panels(): PanelInterface[] {
+		return this.get_children() as PanelInterface[];
 	}
 });
 type PanelGrid = InstanceType<typeof PanelGrid>;
