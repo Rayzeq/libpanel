@@ -5,7 +5,7 @@
     <!--
       The outermost dictionnary is mapping of monitor name (as defined by Dash To Panel) to grid layout. The innermost one is mapping of panel id to position in the gris.
     --> 
-    <key name="layout" type="a{sa{s(ii)}}">
+    <key name="layout" type="a{ia{s(ii)}}">
       <default>{}</default>
     </key>
     <key name="padding-enabled" type="b">

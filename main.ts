@@ -1,431 +1,49 @@
-// Documentation: https://github.com/Rayzeq/libpanel/wiki
-// Useful links:
-//   - Drag & Drop example: https://gitlab.com/justperfection.channel/how-to-create-a-gnome-shell-extension/-/blob/master/example11%40example11.com/extension.js
-
 import Clutter from "gi://Clutter";
-import Cogl from "gi://Cogl";
 import type Gio from "gi://Gio";
 import GObject from "gi://GObject";
-import St from "gi://St";
 
 import { InjectionManager } from "resource:///org/gnome/shell/extensions/extension.js";
+import { EventEmitter } from "resource:///org/gnome/shell/misc/signals.js";
 import { PopupAnimation } from "resource:///org/gnome/shell/ui/boxpointer.js";
-import * as DND from "resource:///org/gnome/shell/ui/dnd.js";
+import type { ExtensionManager, ExtensionObject } from "resource:///org/gnome/shell/ui/extensionSystem.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
-import { QuickSettingsMenu } from "resource:///org/gnome/shell/ui/quickSettings.js";
+import type { Panel as GnomePanel, QuickSettings } from "resource:///org/gnome/shell/ui/panel.js";
+import { QuickSettingsMenu, type QuickSettingsItem, type QuickSettingsLayout } from "resource:///org/gnome/shell/ui/quickSettings.js";
 
+import type { Panel as DtpPanel } from "./dash_to_panel.js";
 import PanelGridMenu from "./menu.js";
-import { Semitransparent } from "./mixins.js";
+import Panel, { QuickSettingsPanelInterface } from "./panel.js";
 import {
 	current_extension_uuid,
 	get_settings,
-	registerClass,
 	rsplit,
-	set_style_value,
 	split,
 } from "./utils.js";
-import {
-	add_named_connections,
-	find_panel,
-} from "./utils_old.js";
 
-const MenuManager = Main.panel.menuManager;
-const QuickSettings = Main.panel.statusArea.quickSettings;
-const QuickSettingsLayout = QuickSettings.menu._grid.layout_manager.constructor;
+export { Panel };
+export const VERSION = 2;
 
-const VERSION = 1;
-
-const AutoHidable = superclass => {
-	// We need to cache the created classes or else we would register the same class name multiple times
-	if (AutoHidable.cache === undefined) AutoHidable.cache = {};
-	if (AutoHidable.cache[superclass.name] !== undefined) return AutoHidable.cache[superclass.name];
-
-	const klass = registerClass({
-		GTypeName: `LibPanel_AutoHidable_${superclass.name}`,
-	}, class extends superclass {
-		constructor(...args) {
-			const container = args.at(-1).container;
-			delete args.at(-1).container;
-			super(...args);
-
-			// We need to accept `null` as valid value here
-			// which is why we don't do `container || this`
-			this.container = container === undefined ? this : container;
-		}
-
-		get container() {
-			return this._lpah_container;
-		}
-
-		set container(value) {
-			if (this._lpah_container !== undefined) this.disconnect_named(this._lpah_container);
-			if (value !== null) {
-				this._lpah_container = value;
-				this.connect_named(this._lpah_container, "child-added", (_container, child) => {
-					this.connect_named(child, "notify::visible", this._update_visibility.bind(this));
-					this._update_visibility();
-				});
-				this.connect_named(this._lpah_container, "child-removed", (_container, child) => {
-					this.disconnect_named(child);
-					this._update_visibility();
-				});
-				this._update_visibility();
-			}
-		}
-
-		_get_ah_children() {
-			return this._lpah_container.get_children();
-		}
-
-		_update_visibility() {
-			for (const child of this._get_ah_children()) {
-				if (child.visible) {
-					this.show();
-					return;
-				}
-			}
-
-			this.hide();
-			// Force the widget to take no space when hidden (this fixes some bugs but I don't know why)
-			this.queue_relayout();
-		}
-	});
-	AutoHidable.cache[superclass.name] = klass;
-	return klass;
-};
-
-const GridItem = superclass => {
-	// We need to cache the created classes or else we would register the same class name multiple times
-	if (GridItem.cache === undefined) GridItem.cache = {};
-	if (GridItem.cache[superclass.name] !== undefined) return GridItem.cache[superclass.name];
-
-	const klass = registerClass({
-		GTypeName: `LibPanel_GridItem_${superclass.name}`,
-	}, class extends superclass {
-		constructor(panel_name, ...args) {
-			super(...args);
-
-			this.is_grid_item = true;
-			this.panel_name = panel_name;
-			this.panel_id = this.panel_name;
-
-			this._drag_handle = DND.makeDraggable(this, {});
-			this.connect_named(this._drag_handle, "drag-begin", () => {
-				QuickSettings.menu.transparent = false;
-
-				// Prevent the first column from disapearing if it only contains `this`
-				const column = this.get_parent()._delegate;
-				const alignment = column.get_parent()._delegate._alignment;
-				this._source_column = column;
-				if (column._inner.get_children().length === 1
-					&& ((alignment == "left" && column.get_previous_sibling() === null)
-						|| (alignment == "right" && column.get_next_sibling() === null))) {
-					column._width_constraint.source = this;
-					column._inhibit_constraint_update = true;
-				}
-
-				this._dnd_placeholder?.destroy();
-				this._dnd_placeholder = new DropZone(this);
-
-				this._drag_monitor = {
-					dragMotion: this._on_drag_motion.bind(this),
-				};
-				DND.addDragMonitor(this._drag_monitor);
-
-				this._drag_orig_index = this.get_parent().get_children().indexOf(this);
-				// dirty fix for Catppuccin theme (because it relys on CSS inheriting)
-				// this may not work with custom grid items
-				this.add_style_class_name?.("popup-menu");
-			});
-			// This is emited BEFORE drag-end, which means that this._dnd_placeholder is still available
-			this.connect_named(this._drag_handle, "drag-cancelled", () => {
-				// This stop the dnd system from doing anything with `this`, we want to manage ourselves what to do.
-				this._drag_handle._dragState = 2 /* DND.DragState.CANCELLED (this enum is private) */;
-
-				if (this._dnd_placeholder.get_parent() !== null) {
-					this._dnd_placeholder.acceptDrop(this);
-				} else { // We manually reset the position of the panel because the dnd system will set it at the end of the column
-					this.get_parent().remove_child(this);
-					this._drag_handle._dragOrigParent.insert_child_at_index(this, this._drag_orig_index);
-				}
-			});
-			// This is called when the drag ends with a drop and when it's cancelled
-			this.connect_named(this._drag_handle, "drag-end", (_drag_handle, _time, _cancelled) => {
-				QuickSettings.menu.transparent = true;
-
-				if (this._drag_monitor !== undefined) {
-					DND.removeDragMonitor(this._drag_monitor);
-					this._drag_monitor = undefined;
-				}
-
-				this._dnd_placeholder?.destroy();
-				this._dnd_placeholder = null;
-
-				const column = this._source_column;
-				if (!column._is_destroyed && column._width_constraint.source == this) {
-					column._width_constraint.source = column.get_next_sibling();
-					column._inhibit_constraint_update = false;
-				}
-
-				// Something, somewhere is setting a forced width & height for this actor,
-				// so we undo that
-				this.width = -1;
-				this.height = -1;
-				this.remove_style_class_name?.("popup-menu");
-			});
-			this.connect_named(this, "destroy", () => {
-				if (this._drag_monitor !== undefined) {
-					DND.removeDragMonitor(this._drag_monitor);
-					this._drag_monitor = undefined;
-				}
-			});
-		}
-
-		_on_drag_motion(event) {
-			if (event.source !== this) return DND.DragMotionResult.CONTINUE;
-			if (event.targetActor === this._dnd_placeholder) return DND.DragMotionResult.COPY_DROP;
-
-			const panel = find_panel(event.targetActor);
-
-			const previous_sibling = panel?.get_previous_sibling();
-			const target_pos = panel?.get_transformed_position();
-			const self_size = this.get_transformed_size();
-
-			this._dnd_placeholder.get_parent()?.remove_child(this._dnd_placeholder);
-
-			if (event.targetActor.is_panel_column) {
-				const column = event.targetActor._delegate._inner;
-				if (column.y_align == Clutter.ActorAlign.START) {
-					column.add_child(this._dnd_placeholder);
-				} else {
-					column.insert_child_at_index(this._dnd_placeholder, 0); 
-				}
-			} else if (panel !== undefined) {
-				const column = panel.get_parent();
-				if (previous_sibling === this._dnd_placeholder || event.y > (target_pos[1] + self_size[1])) {
-					column.insert_child_above(this._dnd_placeholder, panel);
-				} else {
-					column.insert_child_below(this._dnd_placeholder, panel);
-				}
-			}
-
-			return DND.DragMotionResult.NO_DROP;
-		}
-	});
-	GridItem.cache[superclass.name] = klass;
-	return klass;
-};
-
-const DropZone = registerClass(class DropZone extends St.Widget {
-	constructor(source) {
-		super({ style_class: source._drag_actor?.style_class || source.style_class, opacity: 127 });
-		this._delegate = this;
-
-		this._height_constraint = new Clutter.BindConstraint({
-			coordinate: Clutter.BindCoordinate.WIDTH,
-			source: source,
-		});
-		this._width_constraint = new Clutter.BindConstraint({
-			coordinate: Clutter.BindCoordinate.HEIGHT,
-			source: source,
-		});
-		this.add_constraint(this._height_constraint);
-		this.add_constraint(this._width_constraint);
+declare module "resource:///org/gnome/shell/ui/panel.js" {
+	interface Panel {
+		_libpanel?: LibPanel;
 	}
+}
 
-	acceptDrop(source, _actor, _x, _y, _time) {
-		if (!source.is_grid_item) return false;
+declare module "resource:///org/gnome/shell/ui/quickSettings.js" {
+	interface QuickSettingsMenu extends QuickSettingsPanelInterface {}
+}
 
-		source.get_parent().remove_child(source);
-
-		const column = this.get_parent();
-		column.replace_child(this, source);
-
-		column._delegate.get_parent()._delegate._cleanup();
-		LibPanel.get_instance()._save_layout();
-		return true;
-	}
-});
-
-export var Panel = registerClass(class Panel extends GridItem(AutoHidable(St.Widget)) {
-	constructor(panel_name, nColumns = 2) {
-		super(`${current_extension_uuid()}/${panel_name}`, {
-			// I have no idea why, but sometimes, a panel (not all of them) gets allocated too much space (behavior similar to `y-expand`)
-			// This prevent it from taking all available space
-			y_align: Clutter.ActorAlign.START,
-			// Enable this so the menu block any click event from propagating through
-			reactive: true,
-			// We want to set this later
-			container: null,
-		});
-		this._delegate = this;
-
-		// Overlay layer that will hold sub-popups
-		this._overlay = new Clutter.Actor({ layout_manager: new Clutter.BinLayout() });
-
-		// Placeholder to make empty space when opening a sub-popup
-		const placeholder = new Clutter.Actor({
-			// The placeholder have the same height as the overlay, which means
-			// it have the same height as the opened sub-popup
-			constraints: new Clutter.BindConstraint({
-				coordinate: Clutter.BindCoordinate.HEIGHT,
-				source: this._overlay,
-			}),
-		});
-
-		// The grid holding every element
-		this._grid = new St.Widget({
-			style_class: "popup-menu-content quick-settings quick-settings-grid",
-			layout_manager: new QuickSettingsLayout(placeholder, { nColumns }),
-		});
-		// Force the grid to take up all the available width. I'm using a constraint because x_expand don't work
-		this._grid.add_constraint(new Clutter.BindConstraint({
-			coordinate: Clutter.BindCoordinate.WIDTH,
-			source: this,
-		}));
-		this.add_child(this._grid);
-		this.container = this._grid;
-		this._drag_actor = this._grid;
-		this._grid.add_child(placeholder);
-
-		this._dimEffect = new Clutter.BrightnessContrastEffect({ enabled: false });
-		this._grid.add_effect_with_name("dim", this._dimEffect);
-
-		this._overlay.add_constraint(new Clutter.BindConstraint({
-			coordinate: Clutter.BindCoordinate.WIDTH,
-			source: this._grid,
-		}));
-
-		this.add_child(this._overlay);
-	}
-
-	getItems() {
-		// Every child except the placeholder
-		return this._grid.get_children().filter(item => item != this._grid.layout_manager._overlay);
-	}
-
-	getFirstItem() {
-		return this.getItems[0];
-	}
-
-	addItem(item, colSpan: number = 1) {
-		this._grid.add_child(item);
-		this._completeAddItem(item, colSpan);
-	}
-
-	insertItemBefore(item, sibling, colSpan: number = 1) {
-		this._grid.insert_child_below(item, sibling);
-		this._completeAddItem(item, colSpan);
-	}
-
-	_completeAddItem(item, colSpan: number) {
-		this.setColumnSpan(item, colSpan);
-
-		if (item.menu) {
-			this._overlay.add_child(item.menu.actor);
-
-			this.connect_named(item.menu, "open-state-changed", (_, isOpen: boolean) => {
-				this._setDimmed(isOpen);
-				this._activeMenu = isOpen ? item.menu : null;
-				// The sub-popup for the power menu is too high.
-				// I don't know if it's the real source of the issue, but I suspect that the constraint that fixes its y position
-				// isn't accounting for the padding of the grid, so we add it to the offset manually
-				// Later: I added the name check because it breaks on the audio panel
-				// so I'm almost certain that this is not a proper fix
-				if (isOpen && this.getItems().indexOf(item) == 0 && this.panel_name == "gnome@main") {
-					const constraint = item.menu.actor.get_constraints()[0];
-					constraint.offset = 
-						// the offset is normally bound to the height of the source
-						constraint.source.height
-						+ this._grid.get_theme_node().get_padding(St.Side.TOP);
-					// note: we don't reset this property when the item is removed from this panel because
-					// we hope that it will reset itself (because it's bound to the height of the source),
-					// which in the case in my tests, but maybe some issue will arise because of this
-				}
-			});
-		}
-		if (item._menuButton) {
-			item._menuButton._libpanel_y_expand_backup = item._menuButton.y_expand;
-			item._menuButton.y_expand = false;
-		}
-	}
-
-	removeItem(item) {
-		if (!this._grid.get_children().includes(item)) console.error(`[LibPanel] ${current_extension_uuid()} tried to remove an item not in the panel`);
-
-		item.get_parent().remove_child(item);
-		if (item.menu) {
-			this.disconnect_named(item.menu);
-			item.menu.actor?.get_parent()?.remove_child(item.menu.actor);
-		}
-		if (item._menuButton) {
-			item._menuButton.y_expand = item._menuButton._libpanel_y_expand_backup;
-			item._menuButton._libpanel_y_expand_backup = undefined;
-		}
-	}
-
-	getColumnSpan(item) {
-		if (!this._grid.get_children().includes(item)) console.error(`[LibPanel] ${current_extension_uuid()} tried to get the column span of an item not in the panel`);
-
-		const value = new GObject.Value();
-		this._grid.layout_manager.child_get_property(this._grid, item, "column-span", value);
-		const column_span = value.get_int();
-		value.unset();
-		return column_span;
-	}
-
-	setColumnSpan(item, colSpan: number) {
-		if (!this._grid.get_children().includes(item)) console.error(`[LibPanel] ${current_extension_uuid()} tried to set the column span of an item not in the panel`);
-
-		this._grid.layout_manager.child_set_property(this._grid, item, "column-span", colSpan);
-	}
-
-	close() {
-		this._activeMenu?.close(PopupAnimation.NONE);
-	}
-
-	_get_ah_children() {
-		return this.getItems();
-	}
-
-	_setDimmed(dim: boolean) {
-		// copied from https://gitlab.gnome.org/GNOME/gnome-shell/-/blob/main/js/ui/quickSettings.js
-		const DIM_BRIGHTNESS = -0.4;
-		const POPUP_ANIMATION_TIME = 400;
-
-		const val = 127 * (1 + (dim ? 1 : 0) * DIM_BRIGHTNESS);
-		const color = new Cogl.Color({
-			red: val,
-			green: val,
-			blue: val,
-			alpha: 255,
-		});
-
-		this._grid.ease_property("@effects.dim.brightness", color, {
-			mode: Clutter.AnimationMode.LINEAR,
-			duration: POPUP_ANIMATION_TIME,
-			onStopped: () => (this._dimEffect.enabled = dim),
-		});
-		this._dimEffect.enabled = true;
-	}
-});
-
-// Patching the default to menu to have the exact same api as the one from `Panel`.
+// Patching the default menu to have the exact same API as the one from `Panel`.
 // This way, extensions can use them the same way.
-QuickSettingsMenu.prototype.getItems = function () {
-	return this._grid.get_children().filter(item => item != this._grid.layout_manager._overlay);
+QuickSettingsMenu.prototype.getItems = function (): Clutter.Actor[] {
+	return this._grid.get_children().filter(item => item != (this._grid.layout_manager as QuickSettingsLayout)._overlay);
 };
-QuickSettingsMenu.prototype.removeItem = function (item) {
+QuickSettingsMenu.prototype.removeItem = function (item: Clutter.Actor | QuickSettingsItem) {
 	this._grid.remove_child(item);
-	if (item.menu) {
-		// it seems that some menus don't have _signalConnectionsByName (probably custom menus)
-		// we check it exists before using it
-		if (item.menu._signalConnectionsByName) {
-			// Manually remove the connection since we don't have its id.
-			for (const id of item.menu._signalConnectionsByName["open-state-changed"]) {
-				if (item.menu._signalConnections[id].callback.toString().includes("this._setDimmed")) {
-					item.menu.disconnect(id);
-				}
+	if ("menu" in item && item.menu) {
+		for (const id of item.menu._signalConnectionsByName?.['open-state-changed'] || []) {
+			if (item.menu._signalConnections![id].callback.toString().includes("this._setDimmed")) {
+				item.menu.disconnect(id);
 			}
 		}
 
@@ -439,207 +57,298 @@ QuickSettingsMenu.prototype.getColumnSpan = function (item) {
 	value.unset();
 	return column_span;
 };
-QuickSettingsMenu.prototype.setColumnSpan = function (item, colSpan: number) {
-	this._grid.layout_manager.child_set_property(this._grid, item, "column-span", colSpan);
+QuickSettingsMenu.prototype.setColumnSpan = function (item, column_span: number) {
+	this._grid.layout_manager.child_set_property(this._grid, item, "column-span", column_span);
 };
 
-export class LibPanel {
-	static _AutoHidable = AutoHidable;
-	static _Semitransparent = Semitransparent;
-	static _GridItem = GridItem;
-
-	static _DropZone = DropZone;
-	static _PanelGrid = PanelGridMenu;
-
-	static get_instance() {
+export class LibPanel extends EventEmitter {
+	public static get_instance(): LibPanel | undefined {
 		return Main.panel._libpanel;
 	}
 
-	static get VERSION() {
+	public static get VERSION(): number {
 		return LibPanel.get_instance()?.VERSION || VERSION;
 	}
 
-	// make the main panel available whether it's the gnome one or the libpanel one
-	static get main_panel() {
-		return LibPanel.get_instance()?._main_panel || QuickSettings.menu;
+	public static get main_panel() {
+		return LibPanel.get_instance()?.main_panel || Main.panel.statusArea.quickSettings;
 	}
 
-	static get enabled() {
+	public static get enablers() {
+		return LibPanel.get_instance()?.enablers || [];
+	}
+
+	public static get enabled() {
 		return LibPanel.enablers.length !== 0;
 	}
 
-	static get enablers() {
-		return LibPanel.get_instance()?._enablers || [];
-	}
-
-	static enable() {
-		let instance = LibPanel.get_instance();
-		if (!instance) {
-			instance = Main.panel._libpanel = new LibPanel();
-			instance._late_init();
-		};
-		if (instance.constructor.VERSION != VERSION)
-			console.warn(`[LibPanel] ${current_extension_uuid()} depends on libpanel ${VERSION} but libpanel ${instance.constructor.VERSION} is loaded`);
-
+	public static async enable() {
 		const uuid = current_extension_uuid();
-		if (instance._enablers.indexOf(uuid) < 0) instance._enablers.push(uuid);
+		if (!uuid) {
+			console.error("[LibPanel] libpanel wasn't directly enabled from extension code. It will not be enabled.");
+			return;
+		}
+
+		let instance = LibPanel.get_instance();
+		// DO NOT TRUST THE WARNING: typescript still doesn't support async constructors after 7 years..., nor does it support @ts-expect-warning
+		if (!instance) instance = Main.panel._libpanel = await new LibPanel();
+		if (instance.VERSION != VERSION)
+			console.warn(`[LibPanel] ${current_extension_uuid()} depends on libpanel ${VERSION} but libpanel ${instance.VERSION} is loaded`);
+		if (instance.enablers.indexOf(uuid) < 0) instance.enablers.push(uuid);
 	}
 
-	static disable() {
+	public static disable() {
 		const instance = LibPanel.get_instance();
 		if (!instance) return;
 
-		const index = instance._enablers.indexOf(current_extension_uuid());
-		if (index > -1) instance._enablers.splice(index, 1);
+		const uuid = current_extension_uuid();
+		if (!uuid) {
+			console.error("[LibPanel] libpanel wasn't directly disabled from extension code. It will not be disabled.");
+			return;
+		}
 
-		if (instance._enablers.length === 0) {
-			instance._destroy();
-			Main.panel._libpanel = undefined;
+		const index = instance.enablers.indexOf(uuid);
+		if (index > -1) instance.enablers.splice(index, 1);
+
+		if (instance.enablers.length === 0) {
+			instance.destroy();
+			delete Main.panel._libpanel;
 		};
 	}
 
-	static addPanel(panel) {
-		const instance = LibPanel.get_instance();
-		if (!instance)
+	public static addPanel(panel: Panel, instance?: LibPanel) {
+		instance = instance || LibPanel.get_instance();
+		if (!instance) {
 			console.error(`[LibPanel] ${current_extension_uuid()} tried to add a panel, but the library is disabled.`);
+			return;
+		}
 
-		if (instance._settings.get_boolean("padding-enabled"))
-			set_style_value(panel._grid, "padding", `${instance._settings.get_int("padding")}px`);
-		if (instance._settings.get_boolean("row-spacing-enabled"))
-			set_style_value(panel._grid, "spacing-rows", `${instance._settings.get_int("row-spacing")}px`);
-		if (instance._settings.get_boolean("column-spacing-enabled"))
-			set_style_value(panel._grid, "spacing-columns", `${instance._settings.get_int("column-spacing")}px`);
+		return;
 		instance._panel_grid.add_panel(panel);
+
+		// if (instance._panel_grid.box.get_children().length > 1) {
+		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, panel, "column", 1);
+		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, panel, "row", 0);
+
+		// 	let w = new St.Widget({ min_width: 20, natural_width: 100, min_height: 100, natural_height: 100, style: "background-color: cyan" });
+		// 	instance._panel_grid.box.add_child(w);
+		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, w, "column", 1);
+		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, w, "row", 1);
+
+		// 	w = new St.Widget({ min_width: 20, natural_width: 100, min_height: 100, natural_height: 100, style: "background-color: red" });
+		// 	instance._panel_grid.box.add_child(w);
+		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, w, "column", -2);
+
+		// 	// w = new St.Widget({ min_width: 100, natural_width: 150, min_height: 100, natural_height: 100, style: "background-color: blue" });
+		// 	// this._boxPointer.bin.first_child.add_child(w);
+		// 	// this._boxPointer.bin.first_child.layout_manager.child_set_property(this._boxPointer.bin.first_child, w, "column", -2);
+
+		// 	w = new St.Widget({ min_width: 400, natural_width: 500, min_height: 100, natural_height: 100, style: "background-color: yellow" });
+		// 	instance._panel_grid.box.add_child(w);
+		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, w, "column", 2);
+
+		// 	w = new St.Widget({ min_width: 400, natural_width: 500, min_height: 100, natural_height: 100, style: "background-color: green" });
+		// 	instance._panel_grid.box.add_child(w);
+		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, w, "column", 3);
+
+		// }
 	}
 
-	static removePanel(panel) {
+	public static removePanel(panel) {
 		panel._keep_layout = true;
 		panel.get_parent()?.remove_child(panel);
 		panel._keep_layout = undefined;
 	}
 
-	_enablers: string[];
-	_settings: Gio.Settings;
-	_injection_manager: InjectionManager;
+	private VERSION: number = VERSION;
+
+	private enablers: string[];
+	private injection_manager: InjectionManager;
+	private settings: Gio.Settings;
+	// @ts-expect-error: typescript still doesn't support async constructors after 7 years...
+	private main_panel: Panel;
 
 	constructor() {
-		this._enablers = [];
+		super();
+		this.enablers = [];
+		this.injection_manager = new InjectionManager();
 
 		const this_path = "/" + split(rsplit(import.meta.url, "/", 1)[0], "/", 3)[3];
-		this._settings = get_settings(`${this_path}/org.gnome.shell.extensions.libpanel.gschema.xml`);
+		this.settings = get_settings(`${this_path}/org.gnome.shell.extensions.libpanel.gschema.xml`);
 
-		this._injection_manager = new InjectionManager();
-		add_named_connections(this._injection_manager, GObject.Object);
+		this.injection_manager.overrideMethod(Main.panel.statusArea.quickSettings.constructor.prototype, "_setupIndicators", wrapped => function (this: QuickSettings) {
+			const promise = wrapped.call(this);
+			// @ts-expect-error: hack
+			this.__setup_promise = promise.then(() => delete this.__setup_promise);
+			return promise;
+		});
+
+		// @ts-expect-error: typescript still doesn't support async constructors after 7 years...
+		return (async () => {
+			this.main_panel = await this.patch_menu(Main.panel, Main.layoutManager.findIndexForActor(Main.panel));
+			const patch_dash_to_panel = async () => {
+				if (global.dashToPanel)
+					if (global.dashToPanel.panels)
+						for (const panel of global.dashToPanel.panels) {
+							await this.patch_menu(panel, panel.monitor.index);
+						}
+					else
+						global.dashToPanel.connect_object("panels-created", async () => {
+							for (const panel of global.dashToPanel!.panels!) {
+								await this.patch_menu(panel, panel.monitor.index);
+							}
+							return false;
+						}, this);
+			};
+		
+			await patch_dash_to_panel();
+			Main.extensionManager.connect_object("extension-state-changed", (_: ExtensionManager, extension: ExtensionObject) => {
+				if (extension.uuid === "dash-to-panel@jderose9.github.com" && extension.enabled) {
+					patch_dash_to_panel().catch(e => console.error(e));
+				}
+				return false;
+			}, this);
+
+			return this;
+		})().catch(e => console.error(e));
 	}
 
-	_late_init() {
-		// =================== Replacing the popup ==================
-		const new_menu = new Panel("", 2);
-		this._panel_grid = new PanelGridMenu(QuickSettings.menu.sourceActor, QuickSettings.menu._arrowAlignment, QuickSettings.menu._arrowSide, "libpanel@main", new_menu, this._settings);
-		this._panel_grid.setArrowOrigin(QuickSettings.menu._boxPointer._arrowOrigin);
-		this._panel_grid.setSourceAlignment(QuickSettings.menu._boxPointer._sourceAlignment);
+	private destroy() {
+		if (global.dashToPanel) global.dashToPanel.disconnect_object(this);
+		Main.extensionManager.disconnect_object(this);
 
-		this._old_menu = this._replace_menu(this._panel_grid);
+		this.injection_manager.clear();
 
-		// we do that to prevent the name being this: `quick-settings-audio-panel@rayzeq.github.io/gnome@main`
-		new_menu.panel_name = "gnome@main";
-		new_menu.panel_id = "gnome@main";
-		this._move_quick_settings(this._old_menu, new_menu);
-		LibPanel.addPanel(new_menu);
-		this._main_panel = new_menu;
+		// Unpatch all panels
+		this.emit("destroy");
+		this.disconnectAll();
+	}
 
-		// =================== Compatibility code ===================
-		//this._panel_grid.box = new_menu.box; // this would override existing properties
-		//this._panel_grid.actor =  = new_menu.actor;
-		this._panel_grid._dimEffect = new_menu._dimEffect;
-		this._panel_grid._grid = new_menu._grid;
-		this._panel_grid._overlay = new_menu._overlay;
-		this._panel_grid._setDimmed = new_menu._setDimmed.bind(new_menu);
-		this._panel_grid.getFirstItem = new_menu.getFirstItem.bind(new_menu);
-		this._panel_grid.addItem = new_menu.addItem.bind(new_menu);
-		this._panel_grid.insertItemBefore = new_menu.insertItemBefore.bind(new_menu);
-		this._panel_grid._completeAddItem = new_menu._completeAddItem.bind(new_menu);
+	private async patch_menu(panel: GnomePanel | DtpPanel, monitor: number): Promise<Panel> {
+		const quickSettings = panel.statusArea.quickSettings;
+		const menu = quickSettings.menu;
+		// prevent double-patch
+		// @ts-expect-error: menu isn't supposed to be anything else than QuickSettingsMenu
+		if (!(menu instanceof QuickSettingsMenu)) return menu.box.default_panel;
 
-		// ================== Visual customization ==================
-		const set_style_for_panels = (name, value) => {
-			for (const panel of this._panel_grid._get_panels()) {
-				set_style_value(panel._grid, name, value);
+		const gnome_panel = new Panel("", 2);
+		// setting the id after so it's not: `quick-settings-audio-panel@rayzeq.github.io/main@gnome-shell/0`
+		gnome_panel.panel_id = `main@gnome-shell/${monitor}`;
+
+		const grid = new PanelGridMenu(menu.sourceActor, menu._arrowAlignment, menu._arrowSide, monitor, gnome_panel, this.settings);
+		grid.setArrowOrigin(menu._boxPointer._arrowOrigin);
+		grid.setSourceAlignment(menu._boxPointer._sourceAlignment);
+
+		// set properties other extensions might expect
+		// @ts-expect-error
+		grid._dimEffect = gnome_panel._dimEffect;
+		// @ts-expect-error
+		grid._grid = gnome_panel._grid;
+		// @ts-expect-error
+		grid._overlay = gnome_panel._overlay;
+		// @ts-expect-error
+		grid._setDimmed = gnome_panel._setDimmed.bind(gnome_panel);
+		// @ts-expect-error
+		grid.getFirstItem = gnome_panel.getFirstItem.bind(gnome_panel);
+		// @ts-expect-error
+		grid.addItem = gnome_panel.addItem.bind(gnome_panel);
+		// @ts-expect-error
+		grid.insertItemBefore = gnome_panel.insertItemBefore.bind(gnome_panel);
+		// @ts-expect-error
+		grid._completeAddItem = gnome_panel._completeAddItem.bind(gnome_panel);
+
+		// the menu is initialized in an async function, we need to wait for it to finish,
+		// otherwise we risk patching it midway and breaking everything.
+		// note that it is only necessary when dash-to-panel is enabled after QSAP,
+		// because we patch the menus it creates instantly after their creation
+		// @ts-expect-error: hack
+		if (quickSettings.__setup_promise) await quickSettings.__setup_promise;
+
+		const old_menu = this.replace_menu(panel, quickSettings, grid);
+		this.move_quick_settings(old_menu, gnome_panel);
+
+		grid.add_panel(gnome_panel);
+
+		const handler_id = this.connect("destroy", () => {
+			old_menu.disconnect_object(this);
+			panel.disconnect_object(this);
+
+			this.move_quick_settings(gnome_panel, old_menu);
+			this.replace_menu(panel, quickSettings, old_menu);
+			grid.destroy();
+
+			return false;
+		});
+		old_menu.connect_object("destroy", () => {
+			this.disconnect(handler_id);
+		}, this);
+		// Dash-to-panel caches menus (even between extension restarts), so they're never
+		// destroyed, however the panel are destroyed.
+		// It's not really worth unpatching the menu, so we just destroy it.
+		panel.connect_object("destroy", async () => {
+			this.disconnect(handler_id);
+			old_menu.disconnect_object(this);
+
+			try {
+				const dash_to_panel_object = Main.extensionManager.lookup("dash-to-panel@jderose9.github.com");
+				if (!dash_to_panel_object) return;
+				const dash_to_panel = await import(dash_to_panel_object.dir.get_child("extension.js").get_uri());
+				// Dash-to-panel is installed but wasn't ever enabled
+				if (!dash_to_panel.PERSISTENTSTORAGE) return;
+
+				// Gnome shell is being shut down, don't do anything
+				if (gnome_panel.is_destroyed) return;
+
+				const index = dash_to_panel.PERSISTENTSTORAGE["quickSettings"].indexOf(grid);
+
+				this.move_quick_settings(gnome_panel, old_menu);
+				this.replace_menu(null, quickSettings, old_menu);
+				grid.destroy();
+
+				dash_to_panel.PERSISTENTSTORAGE["quickSettings"][index] = old_menu;
+			} catch (e) {
+				console.error(e);
 			}
-		};
+		}, this);
 
-		this._settings.connect("changed::padding-enabled", () => {
-			if (this._settings.get_boolean("padding-enabled"))
-				set_style_for_panels("padding", `${this._settings.get_int("padding")}px`);
-			else
-				set_style_for_panels("padding", null);
-		});
-		this._settings.connect("changed::padding", () => {
-			if (!this._settings.get_boolean("padding-enabled")) return;
-			set_style_for_panels("padding", `${this._settings.get_int("padding")}px`);
-		});
-
-		this._settings.connect("changed::row-spacing-enabled", () => {
-			if (this._settings.get_boolean("row-spacing-enabled"))
-				set_style_for_panels("spacing-rows", `${this._settings.get_int("row-spacing")}px`);
-			else
-				set_style_for_panels("spacing-rows", null);
-		});
-		this._settings.connect("changed::row-spacing", () => {
-			if (!this._settings.get_boolean("row-spacing-enabled")) return;
-			set_style_for_panels("spacing-rows", `${this._settings.get_int("row-spacing")}px`);
-		});
-
-		this._settings.connect("changed::column-spacing-enabled", () => {
-			if (this._settings.get_boolean("column-spacing-enabled"))
-				set_style_for_panels("spacing-columns", `${this._settings.get_int("column-spacing")}px`);
-			else
-				set_style_for_panels("spacing-columns", null);
-		});
-		this._settings.connect("changed::column-spacing", () => {
-			if (!this._settings.get_boolean("column-spacing-enabled")) return;
-			set_style_for_panels("spacing-columns", `${this._settings.get_int("column-spacing")}px`);
-		});
-		// https://gjs-docs.gnome.org/gio20~2.0/gio.settings#signal-changed
-		// "Note that @settings only emits this signal if you have read key at
-		// least once while a signal handler was already connected for key."
-		this._settings.get_boolean("padding-enabled");
-		this._settings.get_boolean("row-spacing-enabled");
-		this._settings.get_boolean("column-spacing-enabled");
-		this._settings.get_int("padding");
-		this._settings.get_int("row-spacing");
-		this._settings.get_int("column-spacing");
+		return gnome_panel;
 	}
 
-	_destroy() {
-		this._move_quick_settings(this._main_panel, this._old_menu);
-		this._replace_menu(this._old_menu);
-		this._old_menu = null;
+	private replace_menu(panel: GnomePanel | DtpPanel | null, quick_settings: QuickSettings, new_menu: QuickSettingsMenu): PanelGridMenu;
+	private replace_menu(panel: GnomePanel | DtpPanel | null, quick_settings: QuickSettings, new_menu: PanelGridMenu): QuickSettingsMenu;
+	private replace_menu(panel: GnomePanel | DtpPanel | null, quick_settings: QuickSettings, new_menu: QuickSettingsMenu | PanelGridMenu): QuickSettingsMenu | PanelGridMenu {
+		const old_menu = quick_settings.menu as QuickSettingsMenu | PanelGridMenu;
 
-		this._panel_grid.destroy();
-		this._panel_grid = null;
+		if (panel) {
+			// undo changes done by `Panel._onMenuSet`
+			// @ts-expect-error: PanelGridMenu is invalid because we override some of its properties
+			panel.menuManager.removeMenu(old_menu);
+			// @ts-expect-error: property set by `Panel`
+			delete old_menu._openChangedConnected;
+			old_menu.disconnect_object(panel);
+		}
 
-		this._settings = null;
+		// undo changes done by `PanelMenuButton.setMenu`
+		old_menu.actor.remove_style_class_name("panel-menu");
+		// there should be only one id, but let's be careful
+		for (const id of old_menu._signalConnectionsByName?.["open-state-changed"]!) old_menu.disconnect(id);
+		// @ts-expect-error: wrong type in GObject
+		GObject.signal_handlers_disconnect_matched(old_menu.actor, { signalId: "key-press-event" });
+		Main.layoutManager.uiGroup.remove_child(old_menu.actor);
 
-		this._injection_manager.clear();
-	}
-
-	_replace_menu(new_menu) {
-		const old_menu = QuickSettings.menu;
-
-		MenuManager.removeMenu(old_menu);
+		// undo changes done by `QuickSettingsMenu`
 		Main.layoutManager.disconnect_object(old_menu);
 
-		QuickSettings.menu = null; // prevent old_menu from being destroyed
-		QuickSettings.setMenu(new_menu);
-		old_menu.actor.get_parent().remove_child(old_menu.actor);
-
-		MenuManager.addMenu(new_menu);
-		Main.layoutManager.connect_object("system-modal-opened", () => new_menu.close(), new_menu);
+		// @ts-expect-error: prevent old_menu from being destroyed, but is technically invalid
+		delete quick_settings.menu;
+		// @ts-expect-error: PanelGridMenu is invalid because we override some of its properties
+		quick_settings.setMenu(new_menu);
+		Main.layoutManager.connect_object("system-modal-opened", () => new_menu.close(PopupAnimation.FULL), new_menu);
 
 		return old_menu;
 	}
 
-	_move_quick_settings(old_menu, new_menu) {
+	private move_quick_settings(old_menu: QuickSettingsMenu | Panel, new_menu: QuickSettingsMenu | Panel) {
 		for (const item of old_menu.getItems()) {
 			const column_span = old_menu.getColumnSpan(item);
 			const visible = item.visible;
@@ -647,7 +356,8 @@ export class LibPanel {
 			old_menu.removeItem(item);
 
 			new_menu.addItem(item, column_span);
-			item.visible = visible; // force reset of visibility
+			// Adding a widget to another automatically make it visible, so we reset manually
+			item.visible = visible;
 		}
 	}
 };

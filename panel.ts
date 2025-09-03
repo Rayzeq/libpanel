@@ -32,6 +32,7 @@ export interface QuickSettingsPanelInterface {
 // Base panel, reproducing gnome's QuickSettingsMenu
 const BasePanel = registerClass(class BasePanel extends St.Widget implements PanelInterface, QuickSettingsPanelInterface {
 	public panel_id: string;
+	public is_destroyed: boolean;
 
 	// Do not rename. Those are the same names that the ones used by QuickSettingsMenu
 	private _overlay: Clutter.Actor;
@@ -82,6 +83,9 @@ const BasePanel = registerClass(class BasePanel extends St.Widget implements Pan
 
 		this._dimEffect = new Clutter.BrightnessContrastEffect({ enabled: false });
 		this._grid.add_effect_with_name("dim", this._dimEffect);
+
+		this.is_destroyed = true;
+		this.connect("destroy", () => { this.is_destroyed = true; });
 	}
 
 	public getItems(): Clutter.Actor[] {
@@ -118,7 +122,7 @@ const BasePanel = registerClass(class BasePanel extends St.Widget implements Pan
 				// isn't accounting for the padding of the grid, so we add it to the offset manually
 				// Later: I added the name check because it breaks on the audio panel
 				// so I'm almost certain that this is not a proper fix
-				if (is_open && this.getItems().indexOf(item) == 0 && this.panel_id == "gnome@main") {
+				if (is_open && this.getItems().indexOf(item) == 0 && this.panel_id.startsWith("main@gnome-shell/")) {
 					const constraint = item.menu.actor.get_constraints()[0] as Clutter.BindConstraint;
 					constraint.offset = 
 						// the offset is normally bound to the height of the source
@@ -246,8 +250,6 @@ const AutohidingPanel = registerClass(class AutohidingPanel extends DraggablePan
 		}
 
 		this.hide();
-		// // Force the widget to take no space when hidden (this fixes some bugs but I don't know why)
-		// this.queue_relayout();
 	}
 });
 type AutohidingPanel = InstanceType<typeof AutohidingPanel>;

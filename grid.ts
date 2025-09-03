@@ -324,13 +324,13 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 	public default_panel: Clutter.Actor;
 
 	private settings: Gio.Settings;
-	private monitor_id: string;
+	private monitor: number;
 
-	constructor(boxpointer: FullscreenBoxpointer, monitor_id: string, default_panel: Clutter.Actor, settings: Gio.Settings) {
+	constructor(boxpointer: FullscreenBoxpointer, monitor: number, default_panel: Clutter.Actor, settings: Gio.Settings) {
 		super({ layout_manager: new PanelGridLayout(), x_expand: true, y_expand: true });
 
 		this.boxpointer = boxpointer;
-		this.monitor_id = monitor_id;
+		this.monitor = monitor;
 		this.default_panel = default_panel;
 		this.settings = settings;
 
@@ -385,10 +385,10 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 
 		this.connect("child-added", (_, child: PanelInterface) => {
 			const layout = this.get_layout();
-			let monitor_layout = layout.get(this.monitor_id);
+			let monitor_layout = layout.get(this.monitor);
 			if (!monitor_layout) {
 				monitor_layout = new Map();
-				layout.set(this.monitor_id, monitor_layout);
+				layout.set(this.monitor, monitor_layout);
 			}
 
 			const position = monitor_layout.get(child.panel_id);
@@ -421,19 +421,19 @@ const PanelGrid = registerClass(class PanelGrid extends Semitransparent(St.Widge
 		this.layout_manager.child_set_property(this, actor, "row", row);
 	}
 
-	private get_layout(): Map<string, Map<string, [number, number]>> {
-		const layout: { [index: string]: { [index: string]: [number, number]; }; } = this.settings.get_value("layout").recursiveUnpack();
+	private get_layout(): Map<number, Map<string, [number, number]>> {
+		const layout: { [index: number]: { [index: string]: [number, number]; }; } = this.settings.get_value("layout").recursiveUnpack();
 		return new Map(
 			Object.entries(layout)
-				.map(([monitor_id, layout]) => [monitor_id, new Map(Object.entries(layout))])
+				.map(([monitor, layout]) => [parseInt(monitor), new Map(Object.entries(layout))])
 		);
 	}
 
-	private save_layout(layout: Map<string, Map<string, [number, number]>>) {
+	private save_layout(layout: Map<number, Map<string, [number, number]>>) {
 		const transformed_layout = Object.fromEntries(
 			[...layout.entries()].map(([k, v]) => [k, Object.fromEntries(v)])
 		);
-		this.settings.set_value("layout", new GLib.Variant("a{sa{s(ii)}}", transformed_layout));
+		this.settings.set_value("layout", new GLib.Variant("a{ia{s(ii)}}", transformed_layout));
 	}
 
 	private get_panels(): PanelInterface[] {
