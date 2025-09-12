@@ -1,0 +1,38 @@
+{
+  "name": "libpanel",
+  "version": "1.0.0",
+  "description": "Library for gnome shell extensions to create new panels in the quick settings",
+  "type": "module",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rayzeq/libpanel"
+  },
+  "author": "Zacharie DUBRULLE <dubrullezacharie@gmail.com>",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/Rayzeq/libpanel/issues"
+  },
+  "homepage": "https://github.com/Rayzeq/libpanel",
+  "sideEffects": false,
+  "devDependencies": {
+    "eslint": "^9.15.0",
+    "eslint-plugin-jsdoc": "^50.5.0",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@girs/gjs": "^4.0.0-beta.36",
+    "@girs/giounix-2.0": "^2.0.0-4.0.0-beta.36",
+    "@girs/gnome-shell": "^48.0.4"
+  },
+  "scripts": {
+    "build": "npm run build:ts && npm run build:schemas",
+    "build:ts": "tsc | exit 0",
+    "build:schemas": "glib-compile-schemas . --targetdir=./dist",
+    "prepack": "npm run build"
+  },
+  "files": [
+    "dist/",
+    "LICENSE"
+  ]
+}
