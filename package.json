@@ -22,7 +22,6 @@
   },
   "dependencies": {
     "@girs/gjs": "^4.0.0-beta.36",
-    "@girs/giounix-2.0": "^2.0.0-4.0.0-beta.36",
     "@girs/gnome-shell": "^48.0.4"
   },
   "scripts": {
