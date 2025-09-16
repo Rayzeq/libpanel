@@ -28,6 +28,7 @@
     "build": "npm run build:ts && npm run build:schemas",
     "build:ts": "tsc | exit 0",
     "build:schemas": "glib-compile-schemas . --targetdir=./dist",
+    "prepare": "npm run build",
     "prepack": "npm run build"
   },
   "files": [
