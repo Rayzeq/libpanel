@@ -22,14 +22,13 @@
   },
   "dependencies": {
     "@girs/gjs": "^4.0.0-beta.36",
-    "@girs/giounix-2.0": "^2.0.0-4.0.0-beta.36",
     "@girs/gnome-shell": "^48.0.4"
   },
   "scripts": {
     "build": "npm run build:ts && npm run build:schemas",
-    "build:ts": "tsc | exit 0",
+    "build:ts": "tsc; exit 0",
     "build:schemas": "glib-compile-schemas . --targetdir=./dist",
-    "prepack": "npm run build"
+    "prepare": "npm run build"
   },
   "files": [
     "dist/",
