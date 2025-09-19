@@ -41,7 +41,7 @@ QuickSettingsMenu.prototype.getItems = function (): Clutter.Actor[] {
 QuickSettingsMenu.prototype.removeItem = function (item: Clutter.Actor | QuickSettingsItem) {
 	this._grid.remove_child(item);
 	if ("menu" in item && item.menu) {
-		for (const id of item.menu._signalConnectionsByName?.['open-state-changed'] || []) {
+		for (const id of item.menu._signalConnectionsByName?.["open-state-changed"] || []) {
 			if (item.menu._signalConnections![id].callback.toString().includes("this._setDimmed")) {
 				item.menu.disconnect(id);
 			}
