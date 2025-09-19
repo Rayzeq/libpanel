@@ -12,6 +12,7 @@
     ],
   },
   "include": [
+    "ambient.d.ts",
     "src/*.ts"
   ],
 }
