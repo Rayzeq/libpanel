@@ -193,7 +193,9 @@ const GridItem = superclass => {
 			// This is emited BEFORE drag-end, which means that this._dnd_placeholder is still available
 			this.connect_named(this._drag_handle, 'drag-cancelled', () => {
 				// This stop the dnd system from doing anything with `this`, we want to manage ourselves what to do.
-				this._drag_handle._dragState = 2 /* DND.DragState.CANCELLED (this enum is private) */;
+				// However, it will prevent some cleanup from being done, so we'll manually run it in drag-end
+				this._drag_handle._qsap_dragActorBackup = this._drag_handle._dragActor;
+				this._drag_handle._dragActor = null;
 
 				if (this._dnd_placeholder.get_parent() !== null) {
 					this._dnd_placeholder.acceptDrop(this);
@@ -205,6 +207,13 @@ const GridItem = superclass => {
 			// This is called when the drag ends with a drop and when it's cancelled
 			this.connect_named(this._drag_handle, 'drag-end', (_drag_handle, _time, _cancelled) => {
 				QuickSettings.menu.transparent = true;
+
+				if (this._drag_handle._dragActor === null && this._drag_handle._qsap_dragActorBackup) {
+					// restore the _dragActor, which will be cleaned up and set to null again by _dragComplete
+					this._drag_handle._dragActor = this._drag_handle._qsap_dragActorBackup;
+					delete this._drag_handle._qsap_dragActorBackup;
+					this._drag_handle._dragComplete();
+				}
 
 				if (this._drag_monitor !== undefined) {
 					DND.removeDragMonitor(this._drag_monitor);
