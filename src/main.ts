@@ -452,6 +452,25 @@ const AlignedBoxpointer = registerClass(class AlignedBoxpointer extends Semitran
 		// Actually set the position
 		allocationBox.set_origin(Math.floor(x), Math.floor(y));
 	}
+
+	open(animate, onComplete) {
+		super.open(animate, onComplete);
+
+		// TODO: instead of disabling the scaling animation, scale each column separatly
+		this.remove_transition("scale-x");
+		this.remove_transition("scale-y");
+		this.scale_x = 1;
+		this.scale_y = 1;
+	}
+
+	close(animate, onComplete) {
+		super.close(animate, onComplete);
+
+		this.remove_transition("scale-x");
+		this.remove_transition("scale-y");
+		this.scale_x = 1;
+		this.scale_y = 1;
+	}
 });
 
 class PanelGrid extends PopupMenu {
