@@ -10,8 +10,8 @@ type MetaInfo<Props, Interfaces, Sigs> = GObject.MetaInfo<Props, Interfaces, Sig
 /** Same as GObject.registerClass, but adds the calling extension's UUID to the class name */
 export function registerClass<
 	T extends ObjectConstructor,
-	Props extends { [key: string]: ParamSpec; },
-	Interfaces extends { $gtype: GType; }[],
+	Props extends { [key: string]: ParamSpec },
+	Interfaces extends { $gtype: GType }[],
 	Sigs extends {
 		[key: string]: {
 			param_types?: readonly GType[];
@@ -22,8 +22,8 @@ export function registerClass<
 export function registerClass<T extends ObjectConstructor>(cls: T): T;
 export function registerClass<
 	T extends ObjectConstructor,
-	Props extends { [key: string]: ParamSpec; },
-	Interfaces extends { $gtype: GType; }[],
+	Props extends { [key: string]: ParamSpec },
+	Interfaces extends { $gtype: GType }[],
 	Sigs extends {
 		[key: string]: {
 			param_types?: readonly GType[];
@@ -45,7 +45,9 @@ export function registerClass<
 	const default_name = `LibPanel_${actual_cls.name}`;
 	const uuid = current_extension_uuid()?.replace(/[^A-Za-z_-]/g, "-");
 	if (uuid === undefined) {
-		console.error("Libpanel's registerClass not called from within extension code. Not mangling name");
+		console.error(
+			"Libpanel's registerClass not called from within extension code. Not mangling name",
+		);
 	} else {
 		actual_options.GTypeName = `${actual_options.GTypeName || default_name}_${uuid}`;
 	}
@@ -56,13 +58,17 @@ export function registerClass<
 /** Python-like split */
 export function split(string: string, sep: string, maxsplit: number): string[] {
 	const splitted = string.split(sep);
-	return maxsplit ? splitted.slice(0, maxsplit).concat([splitted.slice(maxsplit).join(sep)]) : splitted;
+	return maxsplit
+		? splitted.slice(0, maxsplit).concat([splitted.slice(maxsplit).join(sep)])
+		: splitted;
 }
 
 /** Python-like rsplit */
 export function rsplit(string: string, sep: string, maxsplit: number): string[] {
 	const splitted = string.split(sep);
-	return maxsplit ? [splitted.slice(0, -maxsplit).join(sep)].concat(splitted.slice(-maxsplit)) : splitted;
+	return maxsplit
+		? [splitted.slice(0, -maxsplit).join(sep)].concat(splitted.slice(-maxsplit))
+		: splitted;
 }
 
 /** Removes an item from an array and returns whether there was something to remove */
@@ -81,18 +87,23 @@ export function array_insert<T>(array: T[], index: number, ...items: T[]) {
 }
 
 export type StackFrame = {
-	func: string,
-	file: string,
-	line: string,
-	column: string,
+	func: string;
+	file: string;
+	line: string;
+	column: string;
 };
 
 export function get_stack(): StackFrame[] | undefined {
-	return new Error().stack?.split("\n").slice(1).map(line => line.trim()).filter(Boolean).map(frame => {
-		const [func, remaining] = split(frame, "@", 1);
-		const [file, line, column] = rsplit(remaining, ":", 2);
-		return { func, file, line, column };
-	});
+	return new Error().stack
+		?.split("\n")
+		.slice(1)
+		.map(line => line.trim())
+		.filter(Boolean)
+		.map(frame => {
+			const [func, remaining] = split(frame, "@", 1);
+			const [file, line, column] = rsplit(remaining, ":", 2);
+			return { func, file, line, column };
+		});
 }
 
 export function current_extension_uuid(): string | undefined {
@@ -105,29 +116,30 @@ export function current_extension_uuid(): string | undefined {
 			return `${left.split("/").at(-1)}@${right.split("/")[0]}`;
 		}
 	}
-		
+
 	return undefined;
 }
 
-function get_style(widget: St.Widget): { name: string, value: string; }[] {
-	return widget.style
-		?.split(";")
-		.map(x => {
-			const [name, value] = split(x, ":", 1).map(x => x.trim());
-			return { name, value };
-		})
-		.filter(x => x.name !== "") || [];
+function get_style(widget: St.Widget): { name: string; value: string }[] {
+	return (
+		widget.style
+			?.split(";")
+			.map(x => {
+				const [name, value] = split(x, ":", 1).map(x => x.trim());
+				return { name, value };
+			})
+			.filter(x => x.name !== "") || []
+	);
 }
 
 export function set_style_value(widget: St.Widget, name: string, value: string | number | null) {
-	let style: { name: string, value: string | number; }[] = get_style(widget).filter(x => x.name !== name);
+	const style: { name: string; value: string | number }[] = get_style(widget).filter(
+		x => x.name !== name,
+	);
 
-	if (value !== null)
-		style.push({ name, value });
+	if (value !== null) style.push({ name, value });
 
-	widget.style = style
-		.map(({ name, value }) => `${name}: ${value}`)
-		.join(";");
+	widget.style = style.map(({ name, value }) => `${name}: ${value}`).join(";");
 }
 
 export function get_settings(path: string): Gio.Settings {
@@ -136,12 +148,11 @@ export function get_settings(path: string): Gio.Settings {
 	const source = Gio.SettingsSchemaSource.new_from_directory(
 		parent_path,
 		Gio.SettingsSchemaSource.get_default(),
-		false
+		false,
 	);
 
 	const schema = source.lookup(id, true);
-	if (schema === null)
-		throw new Error(`Could not find settings schema: ${path}`);
+	if (schema === null) throw new Error(`Could not find settings schema: ${path}`);
 
 	return new Gio.Settings({ settings_schema: schema });
 }

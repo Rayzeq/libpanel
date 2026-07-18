@@ -17,7 +17,7 @@ declare class Panel extends St.Widget {
 declare module "@girs/shell-16/shell-16" {
 	namespace Shell {
 		interface Global extends GObject.Object {
-			dashToPanel?: EventEmitter<{ "panels-created": []; }> & {
+			dashToPanel?: EventEmitter<{ "panels-created": [] }> & {
 				panels?: Panel[];
 			};
 		}

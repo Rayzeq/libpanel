@@ -1,13 +1,13 @@
-import Clutter from "gi://Clutter";
+import type Clutter from "gi://Clutter";
 import type Gio from "gi://Gio";
-import St from "gi://St";
+import type St from "gi://St";
 
+import type { PopupAnimation } from "resource:///org/gnome/shell/ui/boxpointer.js";
 import { PopupMenu } from "resource:///org/gnome/shell/ui/popupMenu.js";
 
-import { type PopupAnimation } from "resource:///org/gnome/shell/ui/boxpointer.js";
 import FullscreenBoxpointer from "./boxpointer.js";
 import PanelGrid from "./grid.js";
-import { PanelInterface } from "./panel.js";
+import type { PanelInterface } from "./panel.js";
 
 // The spacing between panels in the grid, in pixels.
 const GRID_SPACING = 5;
@@ -20,7 +20,14 @@ export default class PanelGridMenu extends PopupMenu {
 	// @ts-expect-error: replacing some gnome types
 	public override box: PanelGrid;
 
-	constructor(source: St.Widget, arrow_alignment: number, arrow_side: St.Side, monitor: number, default_panel: Clutter.Actor, settings: Gio.Settings) {
+	constructor(
+		source: St.Widget,
+		arrow_alignment: number,
+		arrow_side: St.Side,
+		monitor: number,
+		default_panel: Clutter.Actor,
+		settings: Gio.Settings,
+	) {
 		super(source, arrow_alignment, arrow_side);
 
 		const new_boxpointer = new FullscreenBoxpointer(arrow_side);

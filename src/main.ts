@@ -1,24 +1,26 @@
-import Clutter from "gi://Clutter";
+import type Clutter from "gi://Clutter";
 import type Gio from "gi://Gio";
 import GObject from "gi://GObject";
 
 import { InjectionManager } from "resource:///org/gnome/shell/extensions/extension.js";
 import { EventEmitter } from "resource:///org/gnome/shell/misc/signals.js";
 import { PopupAnimation } from "resource:///org/gnome/shell/ui/boxpointer.js";
-import type { ExtensionManager, ExtensionObject } from "resource:///org/gnome/shell/ui/extensionSystem.js";
+import type {
+	ExtensionManager,
+	ExtensionObject,
+} from "resource:///org/gnome/shell/ui/extensionSystem.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import type { Panel as GnomePanel, QuickSettings } from "resource:///org/gnome/shell/ui/panel.js";
-import { QuickSettingsMenu, type QuickSettingsItem, type QuickSettingsLayout } from "resource:///org/gnome/shell/ui/quickSettings.js";
+import {
+	type QuickSettingsItem,
+	type QuickSettingsLayout,
+	QuickSettingsMenu,
+} from "resource:///org/gnome/shell/ui/quickSettings.js";
 
 import type { Panel as DtpPanel } from "./dash_to_panel.js";
 import PanelGridMenu from "./menu.js";
-import Panel, { QuickSettingsPanelInterface } from "./panel.js";
-import {
-	current_extension_uuid,
-	get_settings,
-	rsplit,
-	split,
-} from "./utils.js";
+import Panel, { type QuickSettingsPanelInterface } from "./panel.js";
+import { current_extension_uuid, get_settings, rsplit, split } from "./utils.js";
 
 export { Panel };
 export const VERSION = 2;
@@ -36,7 +38,9 @@ declare module "resource:///org/gnome/shell/ui/quickSettings.js" {
 // Patching the default menu to have the exact same API as the one from `Panel`.
 // This way, extensions can use them the same way.
 QuickSettingsMenu.prototype.getItems = function (): Clutter.Actor[] {
-	return this._grid.get_children().filter(item => item != (this._grid.layout_manager as QuickSettingsLayout)._overlay);
+	return this._grid
+		.get_children()
+		.filter(item => item != (this._grid.layout_manager as QuickSettingsLayout)._overlay);
 };
 QuickSettingsMenu.prototype.removeItem = function (item: Clutter.Actor | QuickSettingsItem) {
 	this._grid.remove_child(item);
@@ -85,15 +89,19 @@ export class LibPanel extends EventEmitter {
 	public static async enable() {
 		const uuid = current_extension_uuid();
 		if (!uuid) {
-			console.error("[LibPanel] libpanel wasn't directly enabled from extension code. It will not be enabled.");
+			console.error(
+				"[LibPanel] libpanel wasn't directly enabled from extension code. It will not be enabled.",
+			);
 			return;
 		}
 
 		let instance = LibPanel.get_instance();
 		// DO NOT TRUST THE WARNING: typescript still doesn't support async constructors after 7 years..., nor does it support @ts-expect-warning
 		if (!instance) instance = Main.panel._libpanel = await new LibPanel();
-		if (instance.VERSION != VERSION)
-			console.warn(`[LibPanel] ${current_extension_uuid()} depends on libpanel ${VERSION} but libpanel ${instance.VERSION} is loaded`);
+		if (instance.VERSION !== VERSION)
+			console.warn(
+				`[LibPanel] ${current_extension_uuid()} depends on libpanel ${VERSION} but libpanel ${instance.VERSION} is loaded`,
+			);
 		if (instance.enablers.indexOf(uuid) < 0) instance.enablers.push(uuid);
 	}
 
@@ -103,7 +111,9 @@ export class LibPanel extends EventEmitter {
 
 		const uuid = current_extension_uuid();
 		if (!uuid) {
-			console.error("[LibPanel] libpanel wasn't directly disabled from extension code. It will not be disabled.");
+			console.error(
+				"[LibPanel] libpanel wasn't directly disabled from extension code. It will not be disabled.",
+			);
 			return;
 		}
 
@@ -113,13 +123,15 @@ export class LibPanel extends EventEmitter {
 		if (instance.enablers.length === 0) {
 			instance.destroy();
 			delete Main.panel._libpanel;
-		};
+		}
 	}
 
 	public static addPanel(panel: Panel, instance?: LibPanel) {
 		instance = instance || LibPanel.get_instance();
 		if (!instance) {
-			console.error(`[LibPanel] ${current_extension_uuid()} tried to add a panel, but the library is disabled.`);
+			console.error(
+				`[LibPanel] ${current_extension_uuid()} tried to add a panel, but the library is disabled.`,
+			);
 			return;
 		}
 
@@ -176,16 +188,24 @@ export class LibPanel extends EventEmitter {
 		const this_path = "/" + split(rsplit(import.meta.url, "/", 1)[0], "/", 3)[3];
 		this.settings = get_settings(`${this_path}/org.gnome.shell.extensions.libpanel.gschema.xml`);
 
-		this.injection_manager.overrideMethod(Main.panel.statusArea.quickSettings.constructor.prototype, "_setupIndicators", wrapped => function (this: QuickSettings) {
-			const promise = wrapped.call(this);
-			// @ts-expect-error: hack
-			this.__setup_promise = promise.then(() => delete this.__setup_promise);
-			return promise;
-		});
+		this.injection_manager.overrideMethod(
+			Main.panel.statusArea.quickSettings.constructor.prototype,
+			"_setupIndicators",
+			wrapped =>
+				function (this: QuickSettings) {
+					const promise = wrapped.call(this);
+					// @ts-expect-error: hack
+					this.__setup_promise = promise.then(() => delete this.__setup_promise);
+					return promise;
+				},
+		);
 
 		// @ts-expect-error: typescript still doesn't support async constructors after 7 years...
 		return (async () => {
-			this.main_panel = await this.patch_menu(Main.panel, Main.layoutManager.findIndexForActor(Main.panel));
+			this.main_panel = await this.patch_menu(
+				Main.panel,
+				Main.layoutManager.findIndexForActor(Main.panel),
+			);
 			const patch_dash_to_panel = async () => {
 				if (global.dashToPanel)
 					if (global.dashToPanel.panels)
@@ -193,21 +213,29 @@ export class LibPanel extends EventEmitter {
 							await this.patch_menu(panel, panel.monitor.index);
 						}
 					else
-						global.dashToPanel.connect_object("panels-created", async () => {
-							for (const panel of global.dashToPanel!.panels!) {
-								await this.patch_menu(panel, panel.monitor.index);
-							}
-							return false;
-						}, this);
+						global.dashToPanel.connect_object(
+							"panels-created",
+							async () => {
+								for (const panel of global.dashToPanel!.panels!) {
+									await this.patch_menu(panel, panel.monitor.index);
+								}
+								return false;
+							},
+							this,
+						);
 			};
-		
+
 			await patch_dash_to_panel();
-			Main.extensionManager.connect_object("extension-state-changed", (_: ExtensionManager, extension: ExtensionObject) => {
-				if (extension.uuid === "dash-to-panel@jderose9.github.com" && extension.enabled) {
-					patch_dash_to_panel().catch(e => console.error(e));
-				}
-				return false;
-			}, this);
+			Main.extensionManager.connect_object(
+				"extension-state-changed",
+				(_: ExtensionManager, extension: ExtensionObject) => {
+					if (extension.uuid === "dash-to-panel@jderose9.github.com" && extension.enabled) {
+						patch_dash_to_panel().catch(e => console.error(e));
+					}
+					return false;
+				},
+				this,
+			);
 
 			return this;
 		})().catch(e => console.error(e));
@@ -235,7 +263,14 @@ export class LibPanel extends EventEmitter {
 		// setting the id after so it's not: `quick-settings-audio-panel@rayzeq.github.io/main@gnome-shell/0`
 		gnome_panel.panel_id = `main@gnome-shell/${monitor}`;
 
-		const grid = new PanelGridMenu(menu.sourceActor, menu._arrowAlignment, menu._arrowSide, monitor, gnome_panel, this.settings);
+		const grid = new PanelGridMenu(
+			menu.sourceActor,
+			menu._arrowAlignment,
+			menu._arrowSide,
+			monitor,
+			gnome_panel,
+			this.settings,
+		);
 		grid.setArrowOrigin(menu._boxPointer._arrowOrigin);
 		grid.setSourceAlignment(menu._boxPointer._sourceAlignment);
 
@@ -279,44 +314,68 @@ export class LibPanel extends EventEmitter {
 
 			return false;
 		});
-		old_menu.connect_object("destroy", () => {
-			this.disconnect(handler_id);
-		}, this);
+		old_menu.connect_object(
+			"destroy",
+			() => {
+				this.disconnect(handler_id);
+			},
+			this,
+		);
 		// Dash-to-panel caches menus (even between extension restarts), so they're never
 		// destroyed, however the panel are destroyed.
 		// It's not really worth unpatching the menu, so we just destroy it.
-		panel.connect_object("destroy", async () => {
-			this.disconnect(handler_id);
-			old_menu.disconnect_object(this);
+		panel.connect_object(
+			"destroy",
+			async () => {
+				this.disconnect(handler_id);
+				old_menu.disconnect_object(this);
 
-			try {
-				const dash_to_panel_object = Main.extensionManager.lookup("dash-to-panel@jderose9.github.com");
-				if (!dash_to_panel_object) return;
-				const dash_to_panel = await import(dash_to_panel_object.dir.get_child("extension.js").get_uri());
-				// Dash-to-panel is installed but wasn't ever enabled
-				if (!dash_to_panel.PERSISTENTSTORAGE) return;
+				try {
+					const dash_to_panel_object = Main.extensionManager.lookup(
+						"dash-to-panel@jderose9.github.com",
+					);
+					if (!dash_to_panel_object) return;
+					const dash_to_panel = await import(
+						dash_to_panel_object.dir.get_child("extension.js").get_uri()
+					);
+					// Dash-to-panel is installed but wasn't ever enabled
+					if (!dash_to_panel.PERSISTENTSTORAGE) return;
 
-				// Gnome shell is being shut down, don't do anything
-				if (gnome_panel.is_destroyed) return;
+					// Gnome shell is being shut down, don't do anything
+					if (gnome_panel.is_destroyed) return;
 
-				const index = dash_to_panel.PERSISTENTSTORAGE["quickSettings"].indexOf(grid);
+					const index = dash_to_panel.PERSISTENTSTORAGE["quickSettings"].indexOf(grid);
 
-				this.move_quick_settings(gnome_panel, old_menu);
-				this.replace_menu(null, quickSettings, old_menu);
-				grid.destroy();
+					this.move_quick_settings(gnome_panel, old_menu);
+					this.replace_menu(null, quickSettings, old_menu);
+					grid.destroy();
 
-				dash_to_panel.PERSISTENTSTORAGE["quickSettings"][index] = old_menu;
-			} catch (e) {
-				console.error(e);
-			}
-		}, this);
+					dash_to_panel.PERSISTENTSTORAGE["quickSettings"][index] = old_menu;
+				} catch (e) {
+					console.error(e);
+				}
+			},
+			this,
+		);
 
 		return gnome_panel;
 	}
 
-	private replace_menu(panel: GnomePanel | DtpPanel | null, quick_settings: QuickSettings, new_menu: QuickSettingsMenu): PanelGridMenu;
-	private replace_menu(panel: GnomePanel | DtpPanel | null, quick_settings: QuickSettings, new_menu: PanelGridMenu): QuickSettingsMenu;
-	private replace_menu(panel: GnomePanel | DtpPanel | null, quick_settings: QuickSettings, new_menu: QuickSettingsMenu | PanelGridMenu): QuickSettingsMenu | PanelGridMenu {
+	private replace_menu(
+		panel: GnomePanel | DtpPanel | null,
+		quick_settings: QuickSettings,
+		new_menu: QuickSettingsMenu,
+	): PanelGridMenu;
+	private replace_menu(
+		panel: GnomePanel | DtpPanel | null,
+		quick_settings: QuickSettings,
+		new_menu: PanelGridMenu,
+	): QuickSettingsMenu;
+	private replace_menu(
+		panel: GnomePanel | DtpPanel | null,
+		quick_settings: QuickSettings,
+		new_menu: QuickSettingsMenu | PanelGridMenu,
+	): QuickSettingsMenu | PanelGridMenu {
 		const old_menu = quick_settings.menu as QuickSettingsMenu | PanelGridMenu;
 
 		if (panel) {
@@ -331,7 +390,8 @@ export class LibPanel extends EventEmitter {
 		// undo changes done by `PanelMenuButton.setMenu`
 		old_menu.actor.remove_style_class_name("panel-menu");
 		// there should be only one id, but let's be careful
-		for (const id of old_menu._signalConnectionsByName?.["open-state-changed"]!) old_menu.disconnect(id);
+		for (const id of old_menu._signalConnectionsByName?.["open-state-changed"]!)
+			old_menu.disconnect(id);
 		// @ts-expect-error: wrong type in GObject
 		GObject.signal_handlers_disconnect_matched(old_menu.actor, { signalId: "key-press-event" });
 		Main.layoutManager.uiGroup.remove_child(old_menu.actor);
@@ -343,12 +403,19 @@ export class LibPanel extends EventEmitter {
 		delete quick_settings.menu;
 		// @ts-expect-error: PanelGridMenu is invalid because we override some of its properties
 		quick_settings.setMenu(new_menu);
-		Main.layoutManager.connect_object("system-modal-opened", () => new_menu.close(PopupAnimation.FULL), new_menu);
+		Main.layoutManager.connect_object(
+			"system-modal-opened",
+			() => new_menu.close(PopupAnimation.FULL),
+			new_menu,
+		);
 
 		return old_menu;
 	}
 
-	private move_quick_settings(old_menu: QuickSettingsMenu | Panel, new_menu: QuickSettingsMenu | Panel) {
+	private move_quick_settings(
+		old_menu: QuickSettingsMenu | Panel,
+		new_menu: QuickSettingsMenu | Panel,
+	) {
 		for (const item of old_menu.getItems()) {
 			const column_span = old_menu.getColumnSpan(item);
 			const visible = item.visible;
@@ -360,4 +427,4 @@ export class LibPanel extends EventEmitter {
 			item.visible = visible;
 		}
 	}
-};
+}
