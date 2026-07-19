@@ -14,14 +14,14 @@ const GRID_SPACING = 5;
 
 export default class PanelGridMenu extends PopupMenu {
 	// @ts-expect-error: replacing some gnome types
-	private declare override _boxPointer: FullscreenBoxpointer;
+	private declare _boxPointer: FullscreenBoxpointer;
 	// @ts-expect-error: replacing some gnome types
-	public declare override actor: FullscreenBoxpointer;
+	public declare actor: FullscreenBoxpointer;
 	// @ts-expect-error: replacing some gnome types
 	public override box: PanelGrid;
 
 	constructor(
-		source: St.Widget,
+		source: Clutter.Actor,
 		arrow_alignment: number,
 		arrow_side: St.Side,
 		monitor: number,
@@ -43,7 +43,6 @@ export default class PanelGridMenu extends PopupMenu {
 		// Code from PopupMenu's constructor
 		this._boxPointer = new_boxpointer;
 		this.actor = this._boxPointer;
-		// @ts-expect-error: `_delegate` is never defined anywhere
 		this.actor._delegate = this;
 		this.actor.style_class = "popup-menu-boxpointer";
 

@@ -14,8 +14,9 @@ import type {
 
 import { current_extension_uuid, registerClass, set_style_value } from "./utils.js";
 
-const QuickSettingsLayoutConstructor = Main.panel.statusArea.quickSettings.menu._grid.layout_manager
-	.constructor as typeof QuickSettingsLayout;
+// biome-ignore lint/style/noNonNullAssertion: should always be defined
+const QuickSettingsLayoutConstructor = Main.panel.statusArea.quickSettings!.menu._grid
+	.layout_manager.constructor as typeof QuickSettingsLayout;
 
 export interface PanelInterface extends Clutter.Actor {
 	panel_id: string;
@@ -109,7 +110,7 @@ const BasePanel = registerClass(
 			// Every child except the placeholder
 			return this._grid
 				.get_children()
-				.filter(item => item != (this._grid.layout_manager as QuickSettingsLayout)._overlay);
+				.filter(item => item !== (this._grid.layout_manager as QuickSettingsLayout)._overlay);
 		}
 
 		public getFirstItem(): Clutter.Actor {
@@ -152,7 +153,7 @@ const BasePanel = registerClass(
 						// so I'm almost certain that this is not a proper fix
 						if (
 							is_open &&
-							this.getItems().indexOf(item) == 0 &&
+							this.getItems().indexOf(item) === 0 &&
 							this.panel_id.startsWith("main@gnome-shell/")
 						) {
 							const constraint = item.menu.actor.get_constraints()[0] as Clutter.BindConstraint;
@@ -259,10 +260,8 @@ const BasePanel = registerClass(
 		}
 	},
 );
-type BasePanel = InstanceType<typeof BasePanel>;
 
 const DraggablePanel = registerClass(class DraggablePanel extends BasePanel {});
-type DraggablePanel = InstanceType<typeof DraggablePanel>;
 
 const AutohidingPanel = registerClass(
 	class AutohidingPanel extends DraggablePanel {

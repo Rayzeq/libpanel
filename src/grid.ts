@@ -83,7 +83,7 @@ const PanelGridLayout = registerClass(
 			const node = (this._container as St.Widget).get_theme_node();
 
 			let changed = false;
-			let found, length;
+			let found: boolean, length: number;
 			[found, length] = node.lookup_length("spacing-rows", false);
 			changed ||= found;
 			if (found) this.row_spacing = length;
@@ -137,6 +137,7 @@ const PanelGridLayout = registerClass(
 
 				const [min_width, min_height, pref_width, pref_height] = child.get_preferred_size();
 
+				// biome-ignore lint/style/noNonNullAssertion: this is checked above
 				const group = groups.get(index)!;
 				group.min = Math.max(group.min, is_vertical ? min_width : min_height);
 				group.pref = Math.max(group.pref, is_vertical ? pref_width : pref_height);
@@ -161,15 +162,18 @@ const PanelGridLayout = registerClass(
 			}
 
 			// Calculate middle group position
+			// biome-ignore lint/style/noNonNullAssertion: 0 is always in the groups
 			const middle_group = groups.get(0)!;
+			// biome-ignore lint/style/noNonNullAssertion: if this method was called, we have a parent (probably, I don't remember why I put this here)
 			let parent = container.get_parent()!;
-			let success, center_x, center_y;
+			let success: boolean, center_x: number, center_y: number;
 			do {
 				// `container.boxpointer.center` may be on the x or y axis. We compute both and choose the right one after
 				[success, center_x, center_y] = parent.transform_stage_point(
 					container.boxpointer.center,
 					container.boxpointer.center,
 				);
+				// biome-ignore lint/style/noNonNullAssertion: no idea why this is guaranteed to not be null
 				parent = parent.get_parent()!;
 			} while (!success);
 
@@ -277,7 +281,9 @@ const PanelGridLayout = registerClass(
 					(space - this.column_spacing * groups.length) / groups.length,
 					1,
 				);
-				groups.forEach(g => (g.pref = group_size));
+				groups.forEach(g => {
+					g.pref = group_size;
+				});
 			} else if (pref_space > space) {
 				let to_remove = pref_space - space;
 				let shrinkable_count = groups.length;
@@ -297,7 +303,9 @@ const PanelGridLayout = registerClass(
 				const empty_size = Math.min(remaining_space / empty_groups.length, max_empty_size);
 				remaining_space -= empty_size * empty_groups.length;
 
-				empty_groups.forEach(g => (g.pref = empty_size));
+				empty_groups.forEach(g => {
+					g.pref = empty_size;
+				});
 				return remaining_space;
 			}
 
@@ -313,7 +321,7 @@ const PanelGridLayout = registerClass(
 		): void {
 			const is_vertical = arrow_side === St.Side.TOP || arrow_side === St.Side.BOTTOM;
 
-			let cross_pos;
+			let cross_pos: number;
 			switch (arrow_side) {
 				case St.Side.TOP:
 					cross_pos = box.y1;
@@ -367,7 +375,6 @@ const PanelGridLayout = registerClass(
 		}
 	},
 );
-type PanelGridLayout = InstanceType<typeof PanelGridLayout>;
 
 const PanelGrid = registerClass(
 	class PanelGrid extends Semitransparent(St.Widget) {
@@ -509,12 +516,12 @@ const PanelGrid = registerClass(
 		}
 
 		private get_layout(): Map<number, Map<string, [number, number]>> {
-			const layout: { [index: number]: { [index: string]: [number, number] } } = this.settings
-				.get_value("layout")
-				.recursiveUnpack();
+			const layout = this.settings.get_value("layout").recursiveUnpack() as {
+				[monitor: string]: { [panel_id: string]: [number, number] };
+			};
 			return new Map(
 				Object.entries(layout).map(([monitor, layout]) => [
-					parseInt(monitor),
+					parseInt(monitor, 10),
 					new Map(Object.entries(layout)),
 				]),
 			);

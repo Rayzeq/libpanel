@@ -2,7 +2,7 @@ import Gio from "gi://Gio";
 import GObject from "gi://GObject";
 import type St from "gi://St";
 
-type ObjectConstructor = GObject.ObjectConstructor;
+type ObjectConstructor = GObject.Ctor;
 type ParamSpec = GObject.ParamSpec;
 type GType = GObject.GType;
 type MetaInfo<Props, Interfaces, Sigs> = GObject.MetaInfo<Props, Interfaces, Sigs>;
@@ -15,6 +15,7 @@ export function registerClass<
 	Sigs extends {
 		[key: string]: {
 			param_types?: readonly GType[];
+			// biome-ignore lint/suspicious/noExplicitAny: any is used in GObject's definitions
 			[key: string]: any;
 		};
 	},
@@ -27,17 +28,24 @@ export function registerClass<
 	Sigs extends {
 		[key: string]: {
 			param_types?: readonly GType[];
+			// biome-ignore lint/suspicious/noExplicitAny: any is used in GObject's definitions
 			[key: string]: any;
 		};
 	},
->(options_or_class: any, cls?: T): T {
+>(
+	options_or_class: MetaInfo<Props, Interfaces, Sigs> | T,
+	cls?: T,
+): GObject.RegisteredClass<T, Props, Interfaces> {
 	let actual_options: MetaInfo<Props, Interfaces, Sigs>;
 	let actual_cls: T;
 
 	if (cls === undefined) {
+		// @ts-expect-error: checking whether we have a second argument also checks which signature
+		// is used, so we know the first argument is the class
 		actual_cls = options_or_class;
 		actual_options = {};
 	} else {
+		// @ts-expect-error: see above
 		actual_options = options_or_class;
 		actual_cls = cls;
 	}

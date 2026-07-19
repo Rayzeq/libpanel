@@ -40,12 +40,13 @@ declare module "resource:///org/gnome/shell/ui/quickSettings.js" {
 QuickSettingsMenu.prototype.getItems = function (): Clutter.Actor[] {
 	return this._grid
 		.get_children()
-		.filter(item => item != (this._grid.layout_manager as QuickSettingsLayout)._overlay);
+		.filter(item => item !== (this._grid.layout_manager as QuickSettingsLayout)._overlay);
 };
 QuickSettingsMenu.prototype.removeItem = function (item: Clutter.Actor | QuickSettingsItem) {
 	this._grid.remove_child(item);
 	if ("menu" in item && item.menu) {
 		for (const id of item.menu._signalConnectionsByName?.["open-state-changed"] || []) {
+			// biome-ignore lint/style/noNonNullAssertion: if it has _signalConnectionsByName["open-state-changed"], it has _signalConnections
 			if (item.menu._signalConnections![id].callback.toString().includes("this._setDimmed")) {
 				item.menu.disconnect(id);
 			}
@@ -185,11 +186,12 @@ export class LibPanel extends EventEmitter {
 		this.enablers = [];
 		this.injection_manager = new InjectionManager();
 
-		const this_path = "/" + split(rsplit(import.meta.url, "/", 1)[0], "/", 3)[3];
+		const this_path = `/${split(rsplit(import.meta.url, "/", 1)[0], "/", 3)[3]}`;
 		this.settings = get_settings(`${this_path}/org.gnome.shell.extensions.libpanel.gschema.xml`);
 
 		this.injection_manager.overrideMethod(
-			Main.panel.statusArea.quickSettings.constructor.prototype,
+			// biome-ignore lint/style/noNonNullAssertion: this should always be set
+			Main.panel.statusArea.quickSettings!.constructor.prototype,
 			"_setupIndicators",
 			wrapped =>
 				function (this: QuickSettings) {
@@ -201,6 +203,7 @@ export class LibPanel extends EventEmitter {
 		);
 
 		// @ts-expect-error: typescript still doesn't support async constructors after 7 years...
+		// biome-ignore lint/correctness/noConstructorReturn: this is an async constructor
 		return (async () => {
 			this.main_panel = await this.patch_menu(
 				Main.panel,
@@ -216,6 +219,7 @@ export class LibPanel extends EventEmitter {
 						global.dashToPanel.connect_object(
 							"panels-created",
 							async () => {
+								// biome-ignore lint/style/noNonNullAssertion: existence of these properties has already been checked
 								for (const panel of global.dashToPanel!.panels!) {
 									await this.patch_menu(panel, panel.monitor.index);
 								}
@@ -253,7 +257,8 @@ export class LibPanel extends EventEmitter {
 	}
 
 	private async patch_menu(panel: GnomePanel | DtpPanel, monitor: number): Promise<Panel> {
-		const quickSettings = panel.statusArea.quickSettings;
+		// biome-ignore lint/style/noNonNullAssertion: this should always be set
+		const quickSettings = panel.statusArea.quickSettings!;
 		const menu = quickSettings.menu;
 		// prevent double-patch
 		// @ts-expect-error: menu isn't supposed to be anything else than QuickSettingsMenu
@@ -344,13 +349,13 @@ export class LibPanel extends EventEmitter {
 					// Gnome shell is being shut down, don't do anything
 					if (gnome_panel.is_destroyed) return;
 
-					const index = dash_to_panel.PERSISTENTSTORAGE["quickSettings"].indexOf(grid);
+					const index = dash_to_panel.PERSISTENTSTORAGE.quickSettings.indexOf(grid);
 
 					this.move_quick_settings(gnome_panel, old_menu);
 					this.replace_menu(null, quickSettings, old_menu);
 					grid.destroy();
 
-					dash_to_panel.PERSISTENTSTORAGE["quickSettings"][index] = old_menu;
+					dash_to_panel.PERSISTENTSTORAGE.quickSettings[index] = old_menu;
 				} catch (e) {
 					console.error(e);
 				}
@@ -390,7 +395,7 @@ export class LibPanel extends EventEmitter {
 		// undo changes done by `PanelMenuButton.setMenu`
 		old_menu.actor.remove_style_class_name("panel-menu");
 		// there should be only one id, but let's be careful
-		for (const id of old_menu._signalConnectionsByName?.["open-state-changed"]!)
+		for (const id of old_menu._signalConnectionsByName?.["open-state-changed"] || [])
 			old_menu.disconnect(id);
 		// @ts-expect-error: wrong type in GObject
 		GObject.signal_handlers_disconnect_matched(old_menu.actor, { signalId: "key-press-event" });

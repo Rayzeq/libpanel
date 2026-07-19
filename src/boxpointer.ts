@@ -68,7 +68,7 @@ export const FullscreenBoxpointer = registerClass(
 		}
 
 		private _compute_allocation(box: Clutter.ActorBox) {
-			if (!this._sourceActor || !this._sourceActor.mapped) {
+			if (!this._sourceActor?.mapped) {
 				return;
 			}
 
@@ -88,7 +88,7 @@ export const FullscreenBoxpointer = registerClass(
 			const padding = theme_node.get_length("-arrow-rise");
 			const base_space = gap + padding;
 
-			let space;
+			let space: number;
 			switch (this._arrowSide) {
 				case St.Side.TOP:
 					space = base_space + source_extents.get_bottom_right().y - workarea.y;

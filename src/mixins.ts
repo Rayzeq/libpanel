@@ -3,6 +3,7 @@ import GObject from "gi://GObject";
 
 import { registerClass } from "./utils.js";
 
+// biome-ignore lint/suspicious/noExplicitAny: TypeScript itself uses any for ConstructorParameters for example
 type Constructor<T> = new (...args: any[]) => T;
 
 interface SemitransparentInterface {
