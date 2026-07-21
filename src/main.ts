@@ -209,24 +209,30 @@ export class LibPanel extends EventEmitter {
 				Main.panel,
 				Main.layoutManager.findIndexForActor(Main.panel),
 			);
+			const patch_dtp_panels = async (panels: DtpPanel[]) => {
+				for (const panel of panels) {
+					await this.patch_menu(panel, panel.monitor.index);
+				}
+			};
 			const patch_dash_to_panel = async () => {
-				if (global.dashToPanel)
-					if (global.dashToPanel.panels)
-						for (const panel of global.dashToPanel.panels) {
-							await this.patch_menu(panel, panel.monitor.index);
-						}
-					else
-						global.dashToPanel.connect_object(
-							"panels-created",
-							async () => {
-								// biome-ignore lint/style/noNonNullAssertion: those properties are guaranteed to exist when the signal is sent
-								for (const panel of global.dashToPanel!.panels!) {
-									await this.patch_menu(panel, panel.monitor.index);
-								}
-								return false;
-							},
-							this,
-						);
+				if (global.dashToPanel) {
+					// dash-to-panel is already initialized, patch it now
+					if (global.dashToPanel.panels) {
+						await patch_dtp_panels(global.dashToPanel.panels);
+					}
+
+					// This event will be sent if dash-to-panel wasn't initialized yet,
+					// and when a monitors changes (added or deleted)
+					global.dashToPanel.connect_object(
+						"panels-created",
+						async () => {
+							// biome-ignore lint/style/noNonNullAssertion: those properties are guaranteed to exist when the signal is sent
+							await patch_dtp_panels(global.dashToPanel!.panels!);
+							return false;
+						},
+						this,
+					);
+				}
 			};
 
 			await patch_dash_to_panel();
