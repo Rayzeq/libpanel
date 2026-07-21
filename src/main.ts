@@ -219,7 +219,7 @@ export class LibPanel extends EventEmitter {
 						global.dashToPanel.connect_object(
 							"panels-created",
 							async () => {
-								// biome-ignore lint/style/noNonNullAssertion: existence of these properties has already been checked
+								// biome-ignore lint/style/noNonNullAssertion: those properties are guaranteed to exist when the signal is sent
 								for (const panel of global.dashToPanel!.panels!) {
 									await this.patch_menu(panel, panel.monitor.index);
 								}
