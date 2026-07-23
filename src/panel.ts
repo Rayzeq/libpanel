@@ -88,12 +88,22 @@ const BasePanel = registerClass(
 			this.add_child(this._grid);
 			this._grid.add_child(placeholder);
 
-			this._overlay.add_constraint(
-				new Clutter.BindConstraint({
-					coordinate: Clutter.BindCoordinate.WIDTH,
-					source: this._grid,
-				}),
-			);
+			const x_constraint = new Clutter.BindConstraint({
+				coordinate: Clutter.BindCoordinate.X,
+				source: this._grid,
+			});
+			const width_constraint = new Clutter.BindConstraint({
+				coordinate: Clutter.BindCoordinate.WIDTH,
+				source: this._grid,
+			});
+			this._overlay.add_constraint(x_constraint);
+			this._overlay.add_constraint(width_constraint);
+			this._grid.connect("style-changed", _source => {
+				const grid_theme = this._grid.get_theme_node();
+				x_constraint.offset = grid_theme.get_padding(St.Side.LEFT);
+				width_constraint.offset =
+					-grid_theme.get_padding(St.Side.LEFT) - grid_theme.get_padding(St.Side.RIGHT);
+			});
 
 			this.add_child(this._overlay);
 
@@ -151,10 +161,13 @@ const BasePanel = registerClass(
 						// isn't accounting for the padding of the grid, so we add it to the offset manually
 						// Later: I added the name check because it breaks on the audio panel
 						// so I'm almost certain that this is not a proper fix
+						// Later later: it seems the padding really does have something to do with it
+						// it's like the constraint doesn't take it into account but just for the
+						// powermenu. At this point I'm starting to think it's a clutter bug
 						if (
 							is_open &&
 							this.getItems().indexOf(item) === 0 &&
-							this.panel_id.startsWith("main@gnome-shell/")
+							this.panel_id.startsWith("gnome-shell/main")
 						) {
 							const constraint = item.menu.actor.get_constraints()[0] as Clutter.BindConstraint;
 							constraint.offset =
