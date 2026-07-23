@@ -6,6 +6,7 @@ import type { PopupAnimation } from "resource:///org/gnome/shell/ui/boxpointer.j
 import { PopupMenu } from "resource:///org/gnome/shell/ui/popupMenu.js";
 
 import FullscreenBoxpointer from "./boxpointer.js";
+import type { Panel } from "./dash_to_panel.js";
 import PanelGrid from "./grid.js";
 import type { PanelInterface } from "./panel.js";
 
@@ -24,7 +25,6 @@ export default class PanelGridMenu extends PopupMenu {
 		source: Clutter.Actor,
 		arrow_alignment: number,
 		arrow_side: St.Side,
-		monitor: number,
 		default_panel: Clutter.Actor,
 		settings: Gio.Settings,
 	) {
@@ -33,7 +33,7 @@ export default class PanelGridMenu extends PopupMenu {
 		const new_boxpointer = new FullscreenBoxpointer(arrow_side);
 
 		// Replace the box
-		this.box = new PanelGrid(new_boxpointer, monitor, default_panel, settings);
+		this.box = new PanelGrid(new_boxpointer, default_panel, settings);
 		this.box.style = `spacing-rows: ${GRID_SPACING}px; spacing-columns: ${GRID_SPACING}px`;
 
 		// Delete some things
@@ -62,8 +62,7 @@ export default class PanelGridMenu extends PopupMenu {
 	}
 
 	public get panels(): PanelInterface[] {
-		// just assume that we have only valid panels
-		return this.box.get_children() as PanelInterface[];
+		return this.box.get_panels();
 	}
 
 	public override close(animate: PopupAnimation) {
@@ -73,7 +72,35 @@ export default class PanelGridMenu extends PopupMenu {
 		super.close(animate);
 	}
 
-	public add_panel(panel: PanelInterface) {
+	public add_panel(panel: PanelInterface, position?: [number, number]) {
 		this.box.add_child(panel);
+		if (position) {
+			this.box.set_column(panel, position[0]);
+			this.box.set_row(panel, position[1]);
+		}
+	}
+
+	public remove_all_panels(): PanelInterface[] {
+		const panels = this.box.get_panels();
+
+		let gnome_panel: [PanelInterface, [number, number]] | undefined;
+		for (const [i, panel] of panels.entries()) {
+			if (panel.panel_id.startsWith("gnome-shell/main")) {
+				panels.splice(i, 1);
+				gnome_panel = [panel, [this.box.get_column(panel), this.box.get_row(panel)]];
+				// we only support one gnome panel per monitor, stop there
+				// (and this means we don't have to care about the fact that we're editing the
+				// list while iterating through it)
+				break;
+			}
+		}
+
+		this.box.remove_all_children();
+
+		if (gnome_panel) {
+			this.add_panel(...gnome_panel);
+		}
+
+		return panels;
 	}
 }

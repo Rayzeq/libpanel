@@ -14,6 +14,8 @@ declare class Panel extends St.Widget {
 	};
 }
 
+declare type MonitorDescription = { id: string; product: string; primary: boolean };
+
 declare module "@girs/shell-18/shell-18" {
 	namespace Shell {
 		interface Global extends GObject.Object {

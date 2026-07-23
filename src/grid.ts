@@ -382,18 +382,15 @@ const PanelGrid = registerClass(
 		public default_panel: Clutter.Actor;
 
 		private settings: Gio.Settings;
-		private monitor: number;
 
 		constructor(
 			boxpointer: FullscreenBoxpointer,
-			monitor: number,
 			default_panel: Clutter.Actor,
 			settings: Gio.Settings,
 		) {
 			super({ layout_manager: new PanelGridLayout(), x_expand: true, y_expand: true });
 
 			this.boxpointer = boxpointer;
-			this.monitor = monitor;
 			this.default_panel = default_panel;
 			this.settings = settings;
 
@@ -471,28 +468,6 @@ const PanelGrid = registerClass(
 			);
 
 			this.connect("child-added", (_, child: PanelInterface) => {
-				const layout = this.get_layout();
-				let monitor_layout = layout.get(this.monitor);
-				if (!monitor_layout) {
-					monitor_layout = new Map();
-					layout.set(this.monitor, monitor_layout);
-				}
-
-				const position = monitor_layout.get(child.panel_id);
-				if (position) {
-					this.set_column(child, position[0]);
-					this.set_row(child, position[1]);
-				} else {
-					// Default position is the bottom of the center column
-					let max_row = Math.max(...[...monitor_layout.values()].map(v => v[1]));
-					if (max_row === -Infinity) max_row = -1;
-					this.set_column(child, 0);
-					this.set_row(child, max_row + 1);
-
-					monitor_layout.set(child.panel_id, [0, max_row + 1]);
-					this.save_layout(layout);
-				}
-
 				child.set_padding?.(
 					settings.get_boolean("padding-enabled") ? settings.get_int("padding") : null,
 				);
@@ -507,34 +482,34 @@ const PanelGrid = registerClass(
 			});
 		}
 
-		private set_column(actor: Clutter.Actor, column: number) {
+		public get_column(actor: Clutter.Actor): number {
+			const value = new GObject.Value();
+			this.layout_manager.child_get_property(this, actor, "column", value);
+			const column = value.get_int();
+			value.unset();
+
+			return column;
+		}
+
+		public get_row(actor: Clutter.Actor): number {
+			const value = new GObject.Value();
+			this.layout_manager.child_get_property(this, actor, "row", value);
+			const column = value.get_int();
+			value.unset();
+
+			return column;
+		}
+
+		public set_column(actor: Clutter.Actor, column: number) {
 			this.layout_manager.child_set_property(this, actor, "column", column);
 		}
 
-		private set_row(actor: Clutter.Actor, row: number) {
+		public set_row(actor: Clutter.Actor, row: number) {
 			this.layout_manager.child_set_property(this, actor, "row", row);
 		}
 
-		private get_layout(): Map<number, Map<string, [number, number]>> {
-			const layout = this.settings.get_value("layout").recursiveUnpack() as {
-				[monitor: string]: { [panel_id: string]: [number, number] };
-			};
-			return new Map(
-				Object.entries(layout).map(([monitor, layout]) => [
-					parseInt(monitor, 10),
-					new Map(Object.entries(layout)),
-				]),
-			);
-		}
-
-		private save_layout(layout: Map<number, Map<string, [number, number]>>) {
-			const transformed_layout = Object.fromEntries(
-				[...layout.entries()].map(([k, v]) => [k, Object.fromEntries(v)]),
-			);
-			this.settings.set_value("layout", new GLib.Variant("a{ia{s(ii)}}", transformed_layout));
-		}
-
-		private get_panels(): PanelInterface[] {
+		public get_panels(): PanelInterface[] {
+			// just assume that we have only valid panels
 			return this.get_children() as PanelInterface[];
 		}
 	},

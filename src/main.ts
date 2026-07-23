@@ -1,5 +1,6 @@
 import type Clutter from "gi://Clutter";
 import type Gio from "gi://Gio";
+import GLib from "gi://GLib";
 import GObject from "gi://GObject";
 
 import { InjectionManager } from "resource:///org/gnome/shell/extensions/extension.js";
@@ -17,9 +18,9 @@ import {
 	QuickSettingsMenu,
 } from "resource:///org/gnome/shell/ui/quickSettings.js";
 
-import type { Panel as DtpPanel } from "./dash_to_panel.js";
+import type { Panel as DtpPanel, MonitorDescription } from "./dash_to_panel.js";
 import PanelGridMenu from "./menu.js";
-import Panel, { type QuickSettingsPanelInterface } from "./panel.js";
+import Panel, { type PanelInterface, type QuickSettingsPanelInterface } from "./panel.js";
 import { current_extension_uuid, get_settings, rsplit, split } from "./utils.js";
 
 export { Panel };
@@ -127,8 +128,8 @@ export class LibPanel extends EventEmitter {
 		}
 	}
 
-	public static addPanel(panel: Panel, instance?: LibPanel) {
-		instance = instance || LibPanel.get_instance();
+	public static add_panel(panel: PanelInterface) {
+		const instance = LibPanel.get_instance();
 		if (!instance) {
 			console.error(
 				`[LibPanel] ${current_extension_uuid()} tried to add a panel, but the library is disabled.`,
@@ -136,41 +137,11 @@ export class LibPanel extends EventEmitter {
 			return;
 		}
 
-		return;
-		instance._panel_grid.add_panel(panel);
-
-		// if (instance._panel_grid.box.get_children().length > 1) {
-		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, panel, "column", 1);
-		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, panel, "row", 0);
-
-		// 	let w = new St.Widget({ min_width: 20, natural_width: 100, min_height: 100, natural_height: 100, style: "background-color: cyan" });
-		// 	instance._panel_grid.box.add_child(w);
-		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, w, "column", 1);
-		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, w, "row", 1);
-
-		// 	w = new St.Widget({ min_width: 20, natural_width: 100, min_height: 100, natural_height: 100, style: "background-color: red" });
-		// 	instance._panel_grid.box.add_child(w);
-		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, w, "column", -2);
-
-		// 	// w = new St.Widget({ min_width: 100, natural_width: 150, min_height: 100, natural_height: 100, style: "background-color: blue" });
-		// 	// this._boxPointer.bin.first_child.add_child(w);
-		// 	// this._boxPointer.bin.first_child.layout_manager.child_set_property(this._boxPointer.bin.first_child, w, "column", -2);
-
-		// 	w = new St.Widget({ min_width: 400, natural_width: 500, min_height: 100, natural_height: 100, style: "background-color: yellow" });
-		// 	instance._panel_grid.box.add_child(w);
-		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, w, "column", 2);
-
-		// 	w = new St.Widget({ min_width: 400, natural_width: 500, min_height: 100, natural_height: 100, style: "background-color: green" });
-		// 	instance._panel_grid.box.add_child(w);
-		// 	instance._panel_grid.box.layout_manager.child_set_property(instance._panel_grid.box, w, "column", 3);
-
-		// }
+		instance.add_panel(panel);
 	}
 
-	public static removePanel(panel) {
-		panel._keep_layout = true;
+	public static remove_panel(panel: PanelInterface) {
 		panel.get_parent()?.remove_child(panel);
-		panel._keep_layout = undefined;
 	}
 
 	private VERSION: number = VERSION;
@@ -180,6 +151,10 @@ export class LibPanel extends EventEmitter {
 	private settings: Gio.Settings;
 	// @ts-expect-error: typescript still doesn't support async constructors after 7 years...
 	private main_panel: Panel;
+	private grids: Map<string, PanelGridMenu>;
+
+	private dash_to_panel?: ExtensionObject | undefined;
+	private dash_to_panel_settings?: { availableMonitors: MonitorDescription[] };
 
 	constructor() {
 		super();
@@ -201,20 +176,37 @@ export class LibPanel extends EventEmitter {
 					return promise;
 				},
 		);
+		this.grids = new Map();
 
 		// @ts-expect-error: typescript still doesn't support async constructors after 7 years...
 		// biome-ignore lint/correctness/noConstructorReturn: this is an async constructor
 		return (async () => {
-			this.main_panel = await this.patch_menu(
-				Main.panel,
-				Main.layoutManager.findIndexForActor(Main.panel),
-			);
+			this.main_panel = await this.patch_menu(Main.panel, "primary");
 			const patch_dtp_panels = async (panels: DtpPanel[]) => {
+				const qsap_panels = [...this.grids.values()].flatMap(panel_grid =>
+					panel_grid.remove_all_panels(),
+				);
+
 				for (const panel of panels) {
-					await this.patch_menu(panel, panel.monitor.index);
+					await this.patch_menu(
+						panel,
+						// biome-ignore lint/style/noNonNullAssertion: if we're here, dash-to-panel is loaded
+						this.dash_to_panel_settings!.availableMonitors[panel.monitor.index].id,
+					);
+				}
+
+				for (const panel of qsap_panels) {
+					this.add_panel(panel);
 				}
 			};
 			const patch_dash_to_panel = async () => {
+				this.dash_to_panel ??= Main.extensionManager.lookup("dash-to-panel@jderose9.github.com");
+				if (this.dash_to_panel) {
+					this.dash_to_panel_settings ??= await import(
+						this.dash_to_panel.dir.get_child("panelSettings.js").get_uri()
+					);
+				}
+
 				if (global.dashToPanel) {
 					// dash-to-panel is already initialized, patch it now
 					if (global.dashToPanel.panels) {
@@ -256,13 +248,14 @@ export class LibPanel extends EventEmitter {
 		Main.extensionManager.disconnect_object(this);
 
 		this.injection_manager.clear();
+		this.grids.clear();
 
 		// Unpatch all panels
 		this.emit("destroy");
 		this.disconnectAll();
 	}
 
-	private async patch_menu(panel: GnomePanel | DtpPanel, monitor: number): Promise<Panel> {
+	private async patch_menu(panel: GnomePanel | DtpPanel, monitor_name: string): Promise<Panel> {
 		// biome-ignore lint/style/noNonNullAssertion: this should always be set
 		const quickSettings = panel.statusArea.quickSettings!;
 		const menu = quickSettings.menu;
@@ -271,17 +264,17 @@ export class LibPanel extends EventEmitter {
 		if (!(menu instanceof QuickSettingsMenu)) return menu.box.default_panel;
 
 		const gnome_panel = new Panel("", 2);
-		// setting the id after so it's not: `quick-settings-audio-panel@rayzeq.github.io/main@gnome-shell/0`
-		gnome_panel.panel_id = `main@gnome-shell/${monitor}`;
+		// setting the id after so it's not: `quick-settings-audio-panel@rayzeq.github.io/gnome-shell/main:primary`
+		gnome_panel.panel_id = `gnome-shell/main:${monitor_name}`;
 
 		const grid = new PanelGridMenu(
 			menu.sourceActor,
 			menu._arrowAlignment,
 			menu._arrowSide,
-			monitor,
 			gnome_panel,
 			this.settings,
 		);
+		this.grids.set(monitor_name, grid);
 		grid.setArrowOrigin(menu._boxPointer._arrowOrigin);
 		grid.setSourceAlignment(menu._boxPointer._sourceAlignment);
 
@@ -313,7 +306,7 @@ export class LibPanel extends EventEmitter {
 		const old_menu = this.replace_menu(panel, quickSettings, grid);
 		this.move_quick_settings(old_menu, gnome_panel);
 
-		grid.add_panel(gnome_panel);
+		this.add_panel(gnome_panel, [monitor_name, 0, 0]);
 
 		const handler_id = this.connect("destroy", () => {
 			old_menu.disconnect_object(this);
@@ -341,24 +334,27 @@ export class LibPanel extends EventEmitter {
 				this.disconnect(handler_id);
 				old_menu.disconnect_object(this);
 
+				this.grids.delete(monitor_name);
+				for (const panel of grid.remove_all_panels()) {
+					this.add_panel(panel);
+				}
+
 				try {
-					const dash_to_panel_object = Main.extensionManager.lookup(
-						"dash-to-panel@jderose9.github.com",
-					);
-					if (!dash_to_panel_object) return;
+					if (!this.dash_to_panel) return;
 					const dash_to_panel = await import(
-						dash_to_panel_object.dir.get_child("extension.js").get_uri()
+						this.dash_to_panel.dir.get_child("extension.js").get_uri()
 					);
 					// Dash-to-panel is installed but wasn't ever enabled
 					if (!dash_to_panel.PERSISTENTSTORAGE) return;
 
 					// Gnome shell is being shut down, don't do anything
-					if (gnome_panel.is_destroyed) return;
+					if (gnome_panel.is_destroyed && monitor_name === "primary") return;
 
 					const index = dash_to_panel.PERSISTENTSTORAGE.quickSettings.indexOf(grid);
 
 					this.move_quick_settings(gnome_panel, old_menu);
 					this.replace_menu(null, quickSettings, old_menu);
+
 					grid.destroy();
 
 					dash_to_panel.PERSISTENTSTORAGE.quickSettings[index] = old_menu;
@@ -437,5 +433,62 @@ export class LibPanel extends EventEmitter {
 			// Adding a widget to another automatically make it visible, so we reset manually
 			item.visible = visible;
 		}
+	}
+
+	private add_panel(panel: PanelInterface, default_location?: [string, number, number]) {
+		const layout = this.get_layout();
+
+		// y-position used for when we don't have a known position
+		let max_row = Math.max(
+			...[...layout]
+				.filter(([_panel_id, [monitor, _x, _y]]) => monitor === "primary")
+				.map(([_panel_id, [_monitor, _x, y]]) => y),
+		);
+		if (max_row === -Infinity) max_row = -1;
+
+		let location = layout.get(panel.panel_id);
+		if (!location && default_location) {
+			location = default_location;
+
+			layout.set(panel.panel_id, default_location);
+			this.save_layout(layout);
+		}
+
+		if (location) {
+			const grid = this.grids.get(location[0]);
+			const available_monitors = this.dash_to_panel_settings?.availableMonitors;
+			// add to the grid found in the config if
+			// - the grid is the primary one
+			// - the grid exists and is in the available monitors
+			if (
+				grid &&
+				(location[0] === "primary" ||
+					available_monitors?.some(monitor => monitor.id === location[0]))
+			) {
+				grid.add_panel(panel, [location[1], location[2]]);
+			} else {
+				// the monitor this panel is on isn't currently plugged, fallback to the main monitor
+				// biome-ignore lint/style/noNonNullAssertion: primary is always present
+				this.grids.get("primary")!.add_panel(panel, [0, max_row + 1]);
+			}
+		} else {
+			// biome-ignore lint/style/noNonNullAssertion: primary is always present
+			this.grids.get("primary")!.add_panel(panel, [0, max_row + 1]);
+
+			layout.set(panel.panel_id, ["primary", 0, max_row + 1]);
+			this.save_layout(layout);
+		}
+	}
+
+	private get_layout(): Map<string, [string, number, number]> {
+		const layout = this.settings.get_value("layout").recursiveUnpack() as {
+			[panel_id: string]: [string, number, number];
+		};
+		return new Map(Object.entries(layout));
+	}
+
+	private save_layout(layout: Map<string, [string, number, number]>) {
+		const transformed_layout = Object.fromEntries([...layout.entries()]);
+		this.settings.set_value("layout", new GLib.Variant("a{s(sii)}", transformed_layout));
 	}
 }
