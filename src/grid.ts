@@ -193,6 +193,17 @@ const PanelGridLayout = registerClass(
 				parent = parent.get_parent()!;
 			} while (!success);
 
+			const [min_width, min_height, pref_width, pref_height] =
+				container.default_panel.get_preferred_size();
+			const default_min_size = is_vertical ? min_width : min_height;
+			const max_empty_size = is_vertical ? pref_width : pref_height;
+
+			// force the middle group to have a reasonable size even if empty
+			if (middle_group.widgets.length === 0) {
+				middle_group.min = default_min_size;
+				middle_group.pref = max_empty_size;
+			}
+
 			const main_min = is_vertical ? box.x1 : box.y1;
 			const main_max = is_vertical ? box.x2 : box.y2;
 			const middle_group_half = middle_group.pref / 2;
@@ -200,10 +211,6 @@ const PanelGridLayout = registerClass(
 				Math.max(is_vertical ? center_x : center_y, main_min + middle_group_half),
 				main_max - middle_group_half,
 			);
-
-			const [_min_width, _min_height, pref_width, pref_height] =
-				container.default_panel.get_preferred_size();
-			const max_empty_size = is_vertical ? pref_width : pref_height;
 
 			// Fit left/top groups
 			const left_max = center_main - middle_group_half;
