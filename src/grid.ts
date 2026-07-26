@@ -6,7 +6,7 @@ import St from "gi://St";
 
 import type FullscreenBoxpointer from "./boxpointer.js";
 import { Semitransparent } from "./mixins.js";
-import type { PanelInterface } from "./panel.js";
+import type { DragShadow, PanelInterface } from "./panel.js";
 import { registerClass } from "./utils.js";
 
 const GRID_SPACING = 5;
@@ -41,6 +41,12 @@ const PanelGridLayoutMeta = registerClass(
 );
 type PanelGridLayoutMeta = InstanceType<typeof PanelGridLayoutMeta>;
 
+type WidgetGroup = {
+	pref: number;
+	min: number;
+	widgets: Clutter.Actor[];
+	drag_shadow?: DragShadow;
+};
 const PanelGridLayout = registerClass(
 	{
 		Properties: {
@@ -125,12 +131,20 @@ const PanelGridLayout = registerClass(
 			const arrow_side = container.boxpointer._arrowSide;
 
 			const is_vertical = arrow_side === St.Side.TOP || arrow_side === St.Side.BOTTOM;
-			const groups: Map<number, { pref: number; min: number; widgets: Clutter.Actor[] }> =
-				new Map();
+			const groups: Map<number, WidgetGroup> = new Map();
 			groups.set(0, { pref: 1, min: 1, widgets: [] });
 
-			for (const child of container.get_children()) {
+			let drag_shadow: DragShadow | undefined;
+			const children = container.get_children() as (Clutter.Actor | DragShadow)[];
+			for (const child of children) {
 				if (!child.visible) continue;
+				if ("drag_position" in child) {
+					// breaks if there are multiple drag shadow,
+					// it should never happen so it's okay
+					drag_shadow = child;
+					continue;
+				}
+
 				const { column: index } = this._get_child_properties(container, child);
 
 				if (!groups.has(index)) groups.set(index, { pref: 1, min: 1, widgets: [] });
@@ -146,12 +160,14 @@ const PanelGridLayout = registerClass(
 
 			// Handle secondary side flipping
 			const secondary_side = container.boxpointer.secondary_side;
+			let flipped_factor = 1;
 			if (secondary_side === St.Side.RIGHT || secondary_side === St.Side.BOTTOM) {
 				const copy = new Map(groups);
 				groups.clear();
 				copy.forEach((props, group_index) => {
 					groups.set(group_index * -1, props);
 				});
+				flipped_factor = -1;
 			}
 
 			// Fill missing (empty) groups
@@ -231,6 +247,60 @@ const PanelGridLayout = registerClass(
 				}
 			}
 
+			const left_groups = Array.from(groups)
+				.filter(([index, _]) => index < 0)
+				.sort((a, b) => b[0] - a[0]);
+			const right_groups = Array.from(groups)
+				.filter(([index, _]) => index > 0)
+				.sort((a, b) => a[0] - b[0]);
+
+			if (drag_shadow?.drag_position) {
+				const drag_position = drag_shadow.drag_position;
+				drag_position[0] = Math.max(box.x1, Math.min(drag_position[0], box.x2));
+				drag_position[1] = Math.max(box.y1, Math.min(drag_position[1], box.y2));
+
+				const main_pos = is_vertical ? drag_shadow.drag_position[0] : drag_shadow.drag_position[1];
+				let group: WidgetGroup;
+				if (
+					center_main - middle_group_half - this.column_spacing / 2 < main_pos &&
+					main_pos < center_main + middle_group_half + this.column_spacing / 2
+				) {
+					group = middle_group;
+					drag_shadow.grid_position = [0, NaN];
+				} else if (main_pos < center_main - middle_group_half - this.column_spacing / 2) {
+					// default to the left-most group
+					const default_group = left_groups[left_groups.length - 1];
+					group = default_group[1];
+					drag_shadow.grid_position = [default_group[0] * flipped_factor, NaN];
+
+					let pos = left_max - this.column_spacing / 2;
+					for (const [i, g] of left_groups) {
+						if (pos - g.pref - this.column_spacing < main_pos && main_pos < pos) {
+							group = g;
+							drag_shadow.grid_position = [i * flipped_factor, NaN];
+							break;
+						}
+						pos -= group.pref + this.column_spacing;
+					}
+				} else {
+					// default to the right-most group
+					group = right_groups[0][1];
+					drag_shadow.grid_position = [right_groups[0][0] * flipped_factor, NaN];
+
+					let pos = right_min + this.column_spacing / 2;
+					for (const [i, g] of right_groups) {
+						if (pos < main_pos && main_pos < pos + group.pref + this.column_spacing) {
+							group = g;
+							drag_shadow.grid_position = [i * flipped_factor, NaN];
+							break;
+						}
+						pos += group.pref + this.column_spacing;
+					}
+				}
+
+				group.drag_shadow = drag_shadow;
+			}
+
 			// Allocate groups
 			this._allocate_group(
 				middle_group,
@@ -240,9 +310,6 @@ const PanelGridLayout = registerClass(
 				arrow_side,
 			);
 
-			const left_groups = Array.from(groups)
-				.filter(([index, _]) => index < 0)
-				.sort((a, b) => b[0] - a[0]);
 			let main_pos = left_max - this.column_spacing;
 			for (const [_, group] of left_groups) {
 				main_pos -= group.pref;
@@ -250,9 +317,6 @@ const PanelGridLayout = registerClass(
 				main_pos -= this.column_spacing;
 			}
 
-			const right_groups = Array.from(groups)
-				.filter(([index, _]) => index > 0)
-				.sort((a, b) => a[0] - b[0]);
 			main_pos = right_min + this.column_spacing;
 			for (const [_, group] of right_groups) {
 				this._allocate_group(group, main_pos, box, container, arrow_side);
@@ -313,13 +377,14 @@ const PanelGridLayout = registerClass(
 		}
 
 		private _allocate_group(
-			group: { min: number; pref: number; widgets: Clutter.Actor[] },
+			group: WidgetGroup,
 			main_pos: number,
 			box: Clutter.ActorBox,
 			container: PanelGrid,
 			arrow_side: St.Side,
 		): void {
 			const is_vertical = arrow_side === St.Side.TOP || arrow_side === St.Side.BOTTOM;
+			const direction = arrow_side === St.Side.TOP || arrow_side === St.Side.LEFT ? 1 : -1;
 
 			let cross_pos: number;
 			switch (arrow_side) {
@@ -342,36 +407,129 @@ const PanelGridLayout = registerClass(
 					this._get_child_properties(container, a).row -
 					this._get_child_properties(container, b).row,
 			);
+			let shadow_rendered = false;
 			for (const child of group.widgets) {
 				const [_min_width, _min_height, pref_width, pref_height] = child.get_preferred_size();
 				const child_cross_size = is_vertical ? pref_height : pref_width;
-				const child_box = new Clutter.ActorBox();
+				let child_box = this.make_box(
+					arrow_side,
+					main_pos,
+					cross_pos,
+					group.pref,
+					child_cross_size,
+				);
 
-				switch (arrow_side) {
-					case St.Side.TOP:
-						child_box.set_size(group.pref, child_cross_size);
-						child_box.set_origin(main_pos, cross_pos);
-						break;
-					case St.Side.BOTTOM:
-						child_box.set_size(group.pref, child_cross_size);
-						child_box.set_origin(main_pos, cross_pos - child_cross_size);
-						break;
-					case St.Side.LEFT:
-						child_box.set_size(child_cross_size, group.pref);
-						child_box.set_origin(cross_pos, main_pos);
-						break;
-					case St.Side.RIGHT:
-						child_box.set_size(child_cross_size, group.pref);
-						child_box.set_origin(cross_pos - child_cross_size, main_pos);
-						break;
+				if (group.drag_shadow?.drag_position) {
+					const shadow_cross_pos = is_vertical
+						? group.drag_shadow.drag_position[1]
+						: group.drag_shadow.drag_position[0];
+
+					if (
+						(direction === 1 &&
+							cross_pos - this.row_spacing / 2 < shadow_cross_pos &&
+							shadow_cross_pos < cross_pos + child_cross_size + this.row_spacing / 2) ||
+						(direction === -1 &&
+							cross_pos - child_cross_size - this.row_spacing / 2 < shadow_cross_pos &&
+							shadow_cross_pos < cross_pos + this.row_spacing / 2)
+					) {
+						const [_min_width, _min_height, pref_width, pref_height] =
+							group.drag_shadow.get_preferred_size();
+						const cross_size = is_vertical ? pref_height : pref_width;
+
+						if (
+							(direction === 1 && shadow_cross_pos < cross_pos + child_cross_size / 2) ||
+							(direction === -1 && shadow_cross_pos > cross_pos - child_cross_size / 2)
+						) {
+							group.drag_shadow.allocate(
+								this.make_box(arrow_side, main_pos, cross_pos, group.pref, cross_size),
+							);
+							const new_pos = cross_pos + (cross_size + this.row_spacing) * direction;
+							child_box = this.make_box(
+								arrow_side,
+								main_pos,
+								new_pos,
+								group.pref,
+								child_cross_size,
+							);
+							cross_pos = new_pos;
+
+							// biome-ignore lint/style/noNonNullAssertion: this is set by the caller
+							group.drag_shadow.grid_position![1] = this._get_child_properties(
+								container,
+								child,
+							).row;
+						} else {
+							group.drag_shadow.allocate(
+								this.make_box(
+									arrow_side,
+									main_pos,
+									cross_pos + (child_cross_size + this.row_spacing) * direction,
+									group.pref,
+									cross_size,
+								),
+							);
+							cross_pos += (cross_size + this.row_spacing) * direction;
+
+							// biome-ignore lint/style/noNonNullAssertion: this is set by the caller
+							group.drag_shadow.grid_position![1] =
+								this._get_child_properties(container, child).row + 1;
+						}
+
+						shadow_rendered = true;
+					}
 				}
 
 				child.allocate(child_box);
 
-				if (arrow_side === St.Side.TOP || arrow_side === St.Side.LEFT)
-					cross_pos += child_cross_size + this.row_spacing;
-				else cross_pos -= child_cross_size + this.row_spacing;
+				cross_pos += (child_cross_size + this.row_spacing) * direction;
 			}
+
+			if (group.drag_shadow?.drag_position && !shadow_rendered) {
+				const [_min_width, _min_height, pref_width, pref_height] =
+					group.drag_shadow.get_preferred_size();
+				const cross_size = is_vertical ? pref_height : pref_width;
+
+				group.drag_shadow.allocate(
+					this.make_box(arrow_side, main_pos, cross_pos, group.pref, cross_size),
+				);
+
+				const last = group.widgets[group.widgets.length - 1];
+				// biome-ignore lint/style/noNonNullAssertion: this is set by the caller
+				group.drag_shadow.grid_position![1] = last
+					? this._get_child_properties(container, last).row + 1
+					: 0;
+			}
+		}
+
+		private make_box(
+			arrow_side: St.Side,
+			main_position: number,
+			cross_position: number,
+			main_size: number,
+			cross_size: number,
+		): Clutter.ActorBox {
+			const box = new Clutter.ActorBox();
+
+			switch (arrow_side) {
+				case St.Side.TOP:
+					box.set_size(main_size, cross_size);
+					box.set_origin(main_position, cross_position);
+					break;
+				case St.Side.BOTTOM:
+					box.set_size(main_size, cross_size);
+					box.set_origin(main_position, cross_position - cross_size);
+					break;
+				case St.Side.LEFT:
+					box.set_size(cross_size, main_size);
+					box.set_origin(cross_position, main_position);
+					break;
+				case St.Side.RIGHT:
+					box.set_size(cross_size, main_size);
+					box.set_origin(cross_position - cross_size, main_position);
+					break;
+			}
+
+			return box;
 		}
 	},
 );
@@ -398,6 +556,16 @@ const PanelGrid = registerClass(
 			// "Note that @settings only emits this signal if you have read key at
 			// least once while a signal handler was already connected for key."
 			// Those key will be read when the first panel is added
+			this.settings.connect_object(
+				"changed::dnd-enabled",
+				() => {
+					const enabled = this.settings.get_boolean("dnd-enabled");
+					for (const child of this.get_panels()) {
+						child.set_dnd_enabled?.(enabled);
+					}
+				},
+				this,
+			);
 			this.settings.connect_object(
 				"changed::padding-enabled",
 				() => {
@@ -468,6 +636,7 @@ const PanelGrid = registerClass(
 			);
 
 			this.connect("child-added", (_, child: PanelInterface) => {
+				child.set_dnd_enabled?.(settings.get_boolean("dnd-enabled"));
 				child.set_padding?.(
 					settings.get_boolean("padding-enabled") ? settings.get_int("padding") : null,
 				);

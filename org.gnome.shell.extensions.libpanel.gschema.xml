@@ -8,6 +8,9 @@
     <key name="layout" type="a{s(sii)}">
       <default>{}</default>
     </key>
+    <key name="dnd-enabled" type="b">
+      <default>true</default>
+    </key>
     <key name="padding-enabled" type="b">
       <default>false</default>
     </key>

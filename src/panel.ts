@@ -4,6 +4,7 @@ import GObject from "gi://GObject";
 import St from "gi://St";
 
 import { PopupAnimation } from "resource:///org/gnome/shell/ui/boxpointer.js";
+import * as DND from "resource:///org/gnome/shell/ui/dnd.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import type {
 	QuickMenuToggle,
@@ -11,7 +12,7 @@ import type {
 	QuickSettingsLayout,
 	QuickToggleMenu,
 } from "resource:///org/gnome/shell/ui/quickSettings.js";
-
+import type PanelGrid from "./grid.js";
 import { current_extension_uuid, registerClass, set_style_value } from "./utils.js";
 
 // biome-ignore lint/style/noNonNullAssertion: should always be defined
@@ -21,6 +22,7 @@ const QuickSettingsLayoutConstructor = Main.panel.statusArea.quickSettings!.menu
 export interface PanelInterface extends Clutter.Actor {
 	panel_id: string;
 	close?(animate: PopupAnimation): void;
+	set_dnd_enabled?(enabled: boolean): void;
 	set_padding?(padding: number | null): void;
 	set_row_spacing?(row_spacing: number | null): void;
 	set_column_spacing?(column_spacing: number | null): void;
@@ -271,10 +273,123 @@ const BasePanel = registerClass(
 				column_spacing !== null ? `${column_spacing}px` : null,
 			);
 		}
+
+		public shadow_class_name(): string {
+			return `${this.style_class} ${this._grid.style_class}`;
+		}
 	},
 );
 
-const DraggablePanel = registerClass(class DraggablePanel extends BasePanel {});
+const DragShadow = registerClass(
+	class DragShadow extends St.Widget {
+		public drag_position?: [number, number];
+		public grid_position?: [number, number];
+
+		constructor(source: St.Widget & { shadow_class_name(): string }) {
+			super({ style_class: source.shadow_class_name(), opacity: 127 });
+
+			this.add_constraint(
+				new Clutter.BindConstraint({
+					coordinate: Clutter.BindCoordinate.WIDTH,
+					source,
+				}),
+			);
+			this.add_constraint(
+				new Clutter.BindConstraint({
+					coordinate: Clutter.BindCoordinate.HEIGHT,
+					source,
+				}),
+			);
+		}
+	},
+);
+export type DragShadow = InstanceType<typeof DragShadow>;
+
+const DraggablePanel = registerClass(
+	class DraggablePanel extends BasePanel {
+		private draggable: DND._Draggable;
+		private drag_monitor: DND.DragMonitor;
+		private drag_shadow: DragShadow;
+
+		constructor(
+			id: string,
+			n_columns: number = 2,
+			properties?: Partial<St.Widget.ConstructorProps>,
+		) {
+			super(id, n_columns, properties);
+
+			this.draggable = DND.makeDraggable(this, {});
+			this.drag_shadow = new DragShadow(this);
+			this.drag_monitor = {
+				dragMotion: event => {
+					// get the parent from the drag shadow because the DND system has moved us out of the grid
+					// biome-ignore lint/style/noNonNullAssertion: the shadow is always supposed to have a parent
+					const parent = this.drag_shadow.get_parent()!;
+					const [_, x, y] = parent.transform_stage_point(event.x, event.y);
+
+					this.drag_shadow.drag_position = [x, y];
+					return DND.DragMotionResult.MOVE_DROP;
+				},
+				dragDrop: _event => {
+					const grid = this.drag_shadow.get_parent() as PanelGrid;
+					grid.remove_child(this.drag_shadow);
+
+					DND.removeDragMonitor(this.drag_monitor);
+					this.draggable._dragComplete();
+
+					this.get_parent()?.remove_child(this);
+					grid.add_child(this);
+					const new_position = this.drag_shadow.grid_position || [0, 0];
+
+					// shift all panels after the one we add
+					for (const panel of grid.get_panels()) {
+						const row = grid.get_row(panel);
+						if (grid.get_column(panel) === new_position[0] && row >= new_position[1]) {
+							grid.set_row(panel, row + 1);
+						}
+					}
+
+					grid.set_column(this, new_position[0]);
+					grid.set_row(this, new_position[1]);
+
+					return DND.DragDropResult.SUCCESS;
+				},
+			};
+
+			this.draggable.connect("drag-begin", () => {
+				DND.addDragMonitor(this.drag_monitor);
+
+				const grid = this.get_parent() as PanelGrid;
+				const [_, x, y] = grid.transform_stage_point(
+					// biome-ignore lint/style/noNonNullAssertion: always set after drag-begin is emitted
+					this.draggable._dragStartX!,
+					// biome-ignore lint/style/noNonNullAssertion: always set after drag-begin is emitted
+					this.draggable._dragStartY!,
+				);
+				this.drag_shadow.drag_position = [x, y];
+				grid.add_child(this.drag_shadow);
+
+				const column = grid.get_column(this);
+				const row = grid.get_row(this);
+				// shift all panels to fill the hole we left
+				for (const panel of grid.get_panels()) {
+					const panel_row = grid.get_row(panel);
+					if (grid.get_column(panel) === column && panel_row > row) {
+						grid.set_row(panel, row - 1);
+					}
+				}
+			});
+			this.connect("destroy", () => {
+				DND.removeDragMonitor(this.drag_monitor);
+				this.drag_shadow.destroy();
+			});
+		}
+
+		public set_dnd_enabled(enabled: boolean): void {
+			this.draggable._dndGesture.manual_mode = !enabled;
+		}
+	},
+);
 
 const AutohidingPanel = registerClass(
 	class AutohidingPanel extends DraggablePanel {
