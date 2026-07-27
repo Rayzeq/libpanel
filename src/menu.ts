@@ -26,13 +26,14 @@ export default class PanelGridMenu extends PopupMenu {
 		arrow_side: St.Side,
 		default_panel: Clutter.Actor,
 		settings: Gio.Settings,
+		monitor: string,
 	) {
 		super(source, arrow_alignment, arrow_side);
 
 		const new_boxpointer = new FullscreenBoxpointer(arrow_side);
 
 		// Replace the box
-		this.box = new PanelGrid(new_boxpointer, default_panel, settings);
+		this.box = new PanelGrid(new_boxpointer, default_panel, settings, monitor);
 		this.box.style = `spacing-rows: ${GRID_SPACING}px; spacing-columns: ${GRID_SPACING}px`;
 
 		// Delete some things

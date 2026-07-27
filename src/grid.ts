@@ -545,6 +545,7 @@ const PanelGrid = registerClass(
 	class PanelGrid extends Semitransparent(St.Widget) {
 		public boxpointer: FullscreenBoxpointer;
 		public default_panel: Clutter.Actor;
+		public monitor: string;
 
 		private settings: Gio.Settings;
 
@@ -552,12 +553,14 @@ const PanelGrid = registerClass(
 			boxpointer: FullscreenBoxpointer,
 			default_panel: Clutter.Actor,
 			settings: Gio.Settings,
+			monitor: string,
 		) {
 			super({ layout_manager: new PanelGridLayout(), x_expand: true, y_expand: true });
 
 			this.boxpointer = boxpointer;
 			this.default_panel = default_panel;
 			this.settings = settings;
+			this.monitor = monitor;
 
 			// https://gjs-docs.gnome.org/gio20~2.0/gio.settings#signal-changed
 			// "Note that @settings only emits this signal if you have read key at

@@ -388,6 +388,8 @@ const DraggablePanel = registerClass(
 					grid.set_column(this, new_position[0]);
 					grid.set_row(this, new_position[1]);
 
+					LibPanel._move_panel(this, grid.monitor, ...new_position);
+
 					return DND.DragDropResult.SUCCESS;
 				},
 			};

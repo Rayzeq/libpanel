@@ -147,13 +147,47 @@ export class LibPanel extends EventEmitter {
 	public static _get_grid(monitor: number): PanelGridMenu | undefined {
 		const instance = LibPanel.get_instance();
 		if (!instance) {
-			console.error("No instance while doing drag & drop, there's a bug");
+			console.error("No instance while doing drag & drop, this is a bug");
 			return;
 		}
 
 		const dtp_monitor = instance.dash_to_panel_settings?.availableMonitors[monitor];
 		const monitor_name = dtp_monitor && !dtp_monitor.primary ? dtp_monitor.id : "primary";
 		return instance.grids.get(monitor_name);
+	}
+
+	// This doesn't actually move anything, it just affects the saved layout
+	public static _move_panel(panel: PanelInterface, monitor: string, column: number, row: number) {
+		const instance = LibPanel.get_instance();
+		if (!instance) {
+			console.error("No instance while doing drag & drop, this is a bug");
+			return;
+		}
+
+		const layout = instance.get_layout();
+		const previous_location = layout.get(panel.panel_id);
+		layout.delete(panel.panel_id);
+		if (previous_location) {
+			for (const location of layout.values()) {
+				if (
+					location[0] === previous_location[0] &&
+					location[1] === previous_location[1] &&
+					location[2] > previous_location[2]
+				) {
+					location[2] -= 1;
+				}
+			}
+		}
+
+		for (const location of layout.values()) {
+			if (location[0] === monitor && location[1] === column && location[2] >= row) {
+				location[2] += 1;
+			}
+		}
+
+		layout.set(panel.panel_id, [monitor, column, row]);
+
+		instance.save_layout(layout);
 	}
 
 	private VERSION: number = VERSION;
@@ -285,6 +319,7 @@ export class LibPanel extends EventEmitter {
 			menu._arrowSide,
 			gnome_panel,
 			this.settings,
+			monitor_name,
 		);
 		this.grids.set(monitor_name, grid);
 		grid.setArrowOrigin(menu._boxPointer._arrowOrigin);
