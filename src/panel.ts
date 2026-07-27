@@ -13,6 +13,8 @@ import type {
 	QuickToggleMenu,
 } from "resource:///org/gnome/shell/ui/quickSettings.js";
 import type PanelGrid from "./grid.js";
+import { LibPanel } from "./main.js";
+import type PanelGridMenu from "./menu.js";
 import { current_extension_uuid, registerClass, set_style_value } from "./utils.js";
 
 // biome-ignore lint/style/noNonNullAssertion: should always be defined
@@ -322,12 +324,37 @@ const DraggablePanel = registerClass(
 			this.drag_shadow = new DragShadow(this);
 			this.drag_monitor = {
 				dragMotion: event => {
+					const shadow_monitor_index = Main.layoutManager.findIndexForActor(this.drag_shadow);
+					const monitor_index = Main.layoutManager.findIndexForActor(this);
+
 					// get the parent from the drag shadow because the DND system has moved us out of the grid
 					// biome-ignore lint/style/noNonNullAssertion: the shadow is always supposed to have a parent
-					const parent = this.drag_shadow.get_parent()!;
-					const [_, x, y] = parent.transform_stage_point(event.x, event.y);
+					let parent = this.drag_shadow.get_parent()!;
 
+					let grid: PanelGridMenu | undefined;
+					if (shadow_monitor_index !== monitor_index) {
+						grid = LibPanel._get_grid(monitor_index);
+						if (grid) {
+							parent = grid.box;
+
+							if (!grid.isOpen) {
+								const grab_actor =
+									Main.modalActorFocusStack[Main.modalActorFocusStack.length - 1].actor;
+								Main.popModal(this.draggable._grab);
+								grid.open(PopupAnimation.NONE);
+								this.draggable._grab = Main.pushModal(grab_actor);
+							}
+						}
+					}
+
+					const [_, x, y] = parent.transform_stage_point(event.x, event.y);
 					this.drag_shadow.drag_position = [x, y];
+
+					if (shadow_monitor_index !== monitor_index && grid) {
+						this.drag_shadow.get_parent()?.remove_child(this.drag_shadow);
+						grid.box.add_child(this.drag_shadow);
+					}
+
 					return DND.DragMotionResult.MOVE_DROP;
 				},
 				dragDrop: _event => {

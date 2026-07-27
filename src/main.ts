@@ -144,6 +144,18 @@ export class LibPanel extends EventEmitter {
 		panel.get_parent()?.remove_child(panel);
 	}
 
+	public static _get_grid(monitor: number): PanelGridMenu | undefined {
+		const instance = LibPanel.get_instance();
+		if (!instance) {
+			console.error("No instance while doing drag & drop, there's a bug");
+			return;
+		}
+
+		const dtp_monitor = instance.dash_to_panel_settings?.availableMonitors[monitor];
+		const monitor_name = dtp_monitor && !dtp_monitor.primary ? dtp_monitor.id : "primary";
+		return instance.grids.get(monitor_name);
+	}
+
 	private VERSION: number = VERSION;
 
 	private enablers: string[];
