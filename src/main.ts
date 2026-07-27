@@ -416,6 +416,12 @@ export class LibPanel extends EventEmitter {
 			new_menu,
 		);
 
+		// dash-to-panel won't automatically add our new popup in its manager like gnome-shell does
+		if (panel && "_setPanelMenu" in panel) {
+			// @ts-expect-error: PanelGridMenu is invalid because we override some of its properties
+			panel.menuManager.addMenu(new_menu);
+		}
+
 		return old_menu;
 	}
 

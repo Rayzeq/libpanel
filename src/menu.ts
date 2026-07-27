@@ -6,7 +6,6 @@ import type { PopupAnimation } from "resource:///org/gnome/shell/ui/boxpointer.j
 import { PopupMenu } from "resource:///org/gnome/shell/ui/popupMenu.js";
 
 import FullscreenBoxpointer from "./boxpointer.js";
-import type { Panel } from "./dash_to_panel.js";
 import PanelGrid from "./grid.js";
 import type { PanelInterface } from "./panel.js";
 
