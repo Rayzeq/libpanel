@@ -338,6 +338,8 @@ const DraggablePanel = registerClass(
 					this.draggable._dragComplete();
 
 					this.get_parent()?.remove_child(this);
+					// the DND system doesn't properly unset the fixed size
+					this.set_size(-1, -1);
 					grid.add_child(this);
 					const new_position = this.drag_shadow.grid_position || [0, 0];
 
