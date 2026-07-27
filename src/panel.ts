@@ -338,11 +338,18 @@ const DraggablePanel = registerClass(
 							parent = grid.box;
 
 							if (!grid.isOpen) {
+								// Grabs are handled in a stack, so we pop the grab from the DND system,
+								// then push the grab for the newly opened menu (though grid.open),
+								// then push back the DND grab.
+								// This way the DND grab stays on top of the stack.
 								const grab_actor =
 									Main.modalActorFocusStack[Main.modalActorFocusStack.length - 1].actor;
 								Main.popModal(this.draggable._grab);
 								grid.open(PopupAnimation.NONE);
 								this.draggable._grab = Main.pushModal(grab_actor);
+
+								// Prevent this (the panel being dragged visually) from being behind the newly opened grid
+								Main.layoutManager.uiGroup.set_child_above_sibling(this, null);
 							}
 						}
 					}
