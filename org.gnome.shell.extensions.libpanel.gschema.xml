@@ -2,14 +2,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <schema id="org.gnome.shell.extensions.libpanel" path="/org/gnome/shell/extensions/libpanel/">
-    <key name="single-column" type="b">
-      <default>false</default>
+    <!--
+      This is a mapping of panel ID to a monitor ID (as defined by dash-to-panel, with 'default' for gnome when dash-to-panel is disabled) and a x,y position in the grid
+    --> 
+    <key name="layout" type="a{s(sii)}">
+      <default>{}</default>
     </key>
-    <key name="alignment" type="s">
-      <default>"right"</default>
-    </key>
-    <key name="layout" type="aas">
-      <default>[]</default>
+    <key name="dnd-enabled" type="b">
+      <default>true</default>
     </key>
     <key name="padding-enabled" type="b">
       <default>false</default>

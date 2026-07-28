@@ -1,6 +1,7 @@
-{ pkgs ? import <nixos> { } }:
+{ pkgs ? import <nixpkgs> { } }:
 pkgs.mkShell {
   nativeBuildInputs = with pkgs.buildPackages; [
+    nodejs
     glib
   ];
   shellHook = ''
