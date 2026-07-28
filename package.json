@@ -32,6 +32,6 @@
   },
   "files": [
     "dist/",
-    "LICENSE"
+    "src/"
   ]
 }
