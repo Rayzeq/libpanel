@@ -180,8 +180,7 @@ export const FullscreenBoxpointer = registerClass(
 			const rise = themeNode.get_length("-arrow-rise");
 			const animationTime = animate & PopupAnimation.FULL ? POPUP_ANIMATION_TIME : 0;
 
-			if (animate & PopupAnimation.FADE) this.opacity = 0;
-			else this.opacity = 255;
+			this.opacity = animate & PopupAnimation.FADE ? 0 : 255;
 
 			this._muteKeys = false;
 			this.show();
@@ -229,16 +228,16 @@ export const FullscreenBoxpointer = registerClass(
 			if (animate & PopupAnimation.SLIDE) {
 				switch (this._arrowSide) {
 					case St.Side.TOP:
-						translation_y = rise;
-						break;
-					case St.Side.BOTTOM:
 						translation_y = -rise;
 						break;
+					case St.Side.BOTTOM:
+						translation_y = rise;
+						break;
 					case St.Side.LEFT:
-						translation_x = rise;
+						translation_x = -rise;
 						break;
 					case St.Side.RIGHT:
-						translation_x = -rise;
+						translation_x = rise;
 						break;
 				}
 			}
