@@ -20,6 +20,7 @@ import {
 
 import type { Panel as DtpPanel, MonitorDescription } from "./dash_to_panel.js";
 import PanelGridMenu from "./menu.js";
+import type AutohidingPanel from "./panel.js";
 import Panel, { type PanelInterface, type QuickSettingsPanelInterface } from "./panel.js";
 import { current_extension_uuid, get_settings, rsplit, split } from "./utils.js";
 
@@ -76,8 +77,9 @@ export class LibPanel extends EventEmitter {
 		return LibPanel.get_instance()?.VERSION || VERSION;
 	}
 
-	public static get main_panel() {
-		return LibPanel.get_instance()?.main_panel || Main.panel.statusArea.quickSettings;
+	public static get main_panel(): QuickSettingsMenu | AutohidingPanel {
+		// biome-ignore lint/style/noNonNullAssertion: should always be defined by this point
+		return LibPanel.get_instance()?.main_panel || Main.panel.statusArea.quickSettings!.menu;
 	}
 
 	public static get enablers() {
