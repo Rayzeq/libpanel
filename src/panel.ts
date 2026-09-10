@@ -413,7 +413,7 @@ const DraggablePanel = registerClass(
 				for (const panel of grid.get_panels()) {
 					const panel_row = grid.get_row(panel);
 					if (grid.get_column(panel) === column && panel_row > row) {
-						grid.set_row(panel, row - 1);
+						grid.set_row(panel, panel_row - 1);
 					}
 				}
 			});
