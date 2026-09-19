@@ -448,8 +448,8 @@ export class LibPanel extends EventEmitter {
 		// there should be only one id, but let's be careful
 		for (const id of old_menu._signalConnectionsByName?.["open-state-changed"] || [])
 			old_menu.disconnect(id);
-		// @ts-expect-error: wrong type in GObject
-		GObject.signal_handlers_disconnect_matched(old_menu.actor, { signalId: "key-press-event" });
+		// let's hope there wasn't any other action
+		old_menu.actor.clear_actions();
 		Main.layoutManager.uiGroup.remove_child(old_menu.actor);
 
 		// undo changes done by `QuickSettingsMenu`
@@ -457,13 +457,8 @@ export class LibPanel extends EventEmitter {
 
 		// @ts-expect-error: prevent old_menu from being destroyed, but is technically invalid
 		delete quick_settings.menu;
-		// @ts-expect-error: PanelGridMenu is invalid because we override some of its properties
 		quick_settings.setMenu(new_menu);
-		Main.layoutManager.connect_object(
-			"system-modal-opened",
-			() => new_menu.close(PopupAnimation.FULL),
-			new_menu,
-		);
+		Main.layoutManager.connect_object("system-modal-opened", () => new_menu.close(), new_menu);
 
 		// dash-to-panel won't automatically add our new popup in its manager like gnome-shell does
 		if (panel && "_setPanelMenu" in panel) {

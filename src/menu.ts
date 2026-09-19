@@ -2,8 +2,7 @@ import type Clutter from "gi://Clutter";
 import type Gio from "gi://Gio";
 import type St from "gi://St";
 
-import type { PopupAnimation } from "resource:///org/gnome/shell/ui/boxpointer.js";
-import { PopupMenu } from "resource:///org/gnome/shell/ui/popupMenu.js";
+import { PopupMenu, type PopupMenuBase } from "resource:///org/gnome/shell/ui/popupMenu.js";
 
 import FullscreenBoxpointer from "./boxpointer.js";
 import PanelGrid from "./grid.js";
@@ -65,11 +64,11 @@ export default class PanelGridMenu extends PopupMenu {
 		return this.box.get_panels();
 	}
 
-	public override close(animate: PopupAnimation) {
+	public override close(params?: PopupMenuBase.AnimationParams) {
 		for (const panel of this.panels) {
-			panel.close?.(animate);
+			panel.close?.();
 		}
-		super.close(animate);
+		super.close(params);
 	}
 
 	public add_panel(panel: PanelInterface, position?: [number, number]) {

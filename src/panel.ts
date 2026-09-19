@@ -3,7 +3,6 @@ import Cogl from "gi://Cogl";
 import GObject from "gi://GObject";
 import St from "gi://St";
 
-import { PopupAnimation } from "resource:///org/gnome/shell/ui/boxpointer.js";
 import * as DND from "resource:///org/gnome/shell/ui/dnd.js";
 import * as Main from "resource:///org/gnome/shell/ui/main.js";
 import type {
@@ -23,7 +22,7 @@ const QuickSettingsLayoutConstructor = Main.panel.statusArea.quickSettings!.menu
 
 export interface PanelInterface extends Clutter.Actor {
 	panel_id: string;
-	close?(animate: PopupAnimation): void;
+	close?(): void;
 	set_dnd_enabled?(enabled: boolean): void;
 	set_padding?(padding: number | null): void;
 	set_row_spacing?(row_spacing: number | null): void;
@@ -236,7 +235,7 @@ const BasePanel = registerClass(
 		}
 
 		public close() {
-			this._activeMenu?.close(PopupAnimation.NONE);
+			this._activeMenu?.close({ animate: false });
 		}
 
 		private _setDimmed(dim: boolean) {
@@ -345,7 +344,7 @@ const DraggablePanel = registerClass(
 								const grab_actor =
 									Main.modalActorFocusStack[Main.modalActorFocusStack.length - 1].actor;
 								Main.popModal(this.draggable._grab);
-								grid.open(PopupAnimation.NONE);
+								grid.open({ animate: false });
 								this.draggable._grab = Main.pushModal(grab_actor);
 
 								// Prevent this (the panel being dragged visually) from being behind the newly opened grid

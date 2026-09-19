@@ -16,7 +16,7 @@ declare class Panel extends St.Widget {
 
 declare type MonitorDescription = { id: string; product: string; primary: boolean };
 
-declare module "@girs/shell-18/shell-18" {
+declare module "@girs/shell-51/shell-51" {
 	namespace Shell {
 		interface Global extends GObject.Object {
 			dashToPanel?: EventEmitter<{ "panels-created": [] }> & {
