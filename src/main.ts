@@ -448,8 +448,11 @@ export class LibPanel extends EventEmitter {
 		// there should be only one id, but let's be careful
 		for (const id of old_menu._signalConnectionsByName?.["open-state-changed"] || [])
 			old_menu.disconnect(id);
-		// let's hope there wasn't any other action
-		old_menu.actor.clear_actions();
+		// only remove the key controller added by `setMenu`: the menu actor also holds actions we
+		// don't own (e.g. the controller `St.FocusManager` adds to focus groups), and freeing those
+		// makes the shell crash when the actor is destroyed
+		// @ts-expect-error: private property of `PanelMenuButton`
+		old_menu.actor.remove_action(quick_settings._keyController);
 		Main.layoutManager.uiGroup.remove_child(old_menu.actor);
 
 		// undo changes done by `QuickSettingsMenu`

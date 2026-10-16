@@ -37,11 +37,14 @@ export default class PanelGridMenu extends PopupMenu {
 
 		// Delete some things
 		global.focus_manager.remove_group(this.actor);
-		this._boxPointer.destroy();
+		const old_boxpointer = this._boxPointer;
 
 		// Code from PopupMenu's constructor
 		this._boxPointer = new_boxpointer;
+		// the old actor must be replaced before being destroyed, since its `destroy` signal
+		// destroys the menu
 		this.actor = this._boxPointer;
+		old_boxpointer.destroy();
 		this.actor._delegate = this;
 		this.actor.style_class = "popup-menu-boxpointer";
 
